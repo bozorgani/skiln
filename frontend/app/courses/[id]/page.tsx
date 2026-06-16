@@ -11,6 +11,7 @@ import { getImageUrl } from '@/lib/image-utils';
 import { calculateCourseDuration, calculateTotalLessons } from '@/lib/course-utils';
 import DescriptionBox from '@/components/course/DescriptionBox';
 import FAQSection from '@/components/course/FAQSection';
+import CourseReviews from '@/components/course/CourseReviews';
 
 async function getCurrentUser() {
   try {
@@ -754,6 +755,15 @@ export default async function CourseDetailPage({
             </div>
           </div>
         </div>
+
+        <section className="mt-8 md:mt-12">
+          <CourseReviews
+            courseId={id}
+            isEnrolled={isEnrolled}
+            isAdmin={isAdmin}
+            initialRating={course.ratings}
+          />
+        </section>
       </main>
     </div>
   );

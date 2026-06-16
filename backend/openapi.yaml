@@ -319,6 +319,118 @@ paths:
       responses:
         '200':
           description: Test payment completed
+  /categories:
+    get:
+      summary: List categories
+      parameters:
+        - in: query
+          name: type
+          schema: { type: string, enum: [course, blog] }
+      responses:
+        '200':
+          description: Categories retrieved
+    post:
+      summary: Create category
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '201':
+          description: Category created
+  /contact/messages:
+    post:
+      summary: Create contact message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, subject, message]
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                phone: { type: string }
+                subject: { type: string }
+                message: { type: string }
+      responses:
+        '201':
+          description: Contact message created
+    get:
+      summary: List contact messages
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Admin contact message list
+  /courses/{courseId}/reviews:
+    get:
+      summary: List approved course reviews
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Course reviews retrieved
+    post:
+      summary: Create course review
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating, content]
+              properties:
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                title: { type: string }
+                content: { type: string }
+      responses:
+        '201':
+          description: Review created and waiting for moderation
+  /reviews:
+    get:
+      summary: List all reviews for moderation
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Reviews retrieved
+  /reviews/{id}/moderate:
+    put:
+      summary: Approve or reject review
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [isApproved]
+              properties:
+                isApproved: { type: boolean }
+      responses:
+        '200':
+          description: Review moderated
   /uploads/images:
     post:
       summary: Upload image

@@ -155,7 +155,7 @@ export const blogAPI = {
 };
 
 export const categoriesAPI = {
-  getAll: () => api.get('/categories'),
+  getAll: (params?: any) => api.get('/categories', { params }),
   getById: (id: string) => api.get(`/categories/${id}`),
   create: (data: any) => api.post('/categories', data),
   update: (id: string, data: any) => api.put(`/categories/${id}`, data),
@@ -179,6 +179,13 @@ export const ticketsAPI = {
   getResponses: (ticketId: string) => api.get(`/tickets/${ticketId}/responses`),
   createResponse: (ticketId: string, data: any) => 
     api.post(`/tickets/${ticketId}/responses`, data),
+};
+
+export const contactMessagesAPI = {
+  getAll: (params?: any) => api.get('/contact/messages', { params }),
+  getById: (id: string) => api.get(`/contact/messages/${id}`),
+  update: (id: string, data: any) => api.patch(`/contact/messages/${id}`, data),
+  delete: (id: string) => api.delete(`/contact/messages/${id}`),
 };
 
 export const reviewsAPI = {

@@ -2,8 +2,9 @@ const express = require('express');
 const auth = require('../../middlewares/auth');
 const validate = require('../../middlewares/validate');
 const schemaValidate = require('../../middlewares/schemaValidate');
-const { courseSchemas } = require('../../validations/schemas');
+const { courseSchemas, reviewSchemas } = require('../../validations/schemas');
 const courseController = require('./course.controller');
+const reviewController = require('../reviews/review.controller');
 
 const router = express.Router();
 
@@ -16,6 +17,11 @@ router
     validate(['title', 'description', 'price']),
     courseController.createCourse
   );
+
+router
+  .route('/:courseId/reviews')
+  .get(reviewController.listCourseReviews)
+  .post(auth(), schemaValidate(reviewSchemas.create), reviewController.createCourseReview);
 
 router
   .route('/:id')

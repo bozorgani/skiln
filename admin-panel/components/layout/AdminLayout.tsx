@@ -23,7 +23,8 @@ import {
   Sparkles,
   Sun,
   Moon,
-  Laptop2
+  Laptop2,
+  Tag
 } from 'lucide-react';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
@@ -35,7 +36,9 @@ const navigation = [
   { name: 'وبلاگ', href: '/blog', icon: FileText },
   { name: 'مالی', href: '/finance', icon: DollarSign },
   { name: 'تیکت‌ها', href: '/tickets', icon: Ticket },
+  { name: 'پیام‌ها', href: '/contact-messages', icon: MessageSquare },
   { name: 'نظرات', href: '/feedback', icon: MessageSquare },
+  { name: 'دسته‌بندی‌ها', href: '/categories', icon: Tag },
   { name: 'گزارش‌ها', href: '/reports', icon: BarChart3 },
   { name: 'تنظیمات', href: '/settings', icon: Settings },
 ];

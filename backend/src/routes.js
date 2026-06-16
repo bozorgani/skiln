@@ -17,6 +17,9 @@ const uploadRoutes = require('./modules/uploads/upload.routes');
 const couponRoutes = require('./modules/coupons/coupon.routes');
 const progressRoutes = require('./modules/progress/progress.routes');
 const certificateRoutes = require('./modules/certificates/certificate.routes');
+const categoryRoutes = require('./modules/categories/category.routes');
+const contactRoutes = require('./modules/contact/contact.routes');
+const reviewRoutes = require('./modules/reviews/review.routes');
 
 const router = express.Router();
 
@@ -55,10 +58,12 @@ router.use('/courses', courseRoutes);
 router.use('/blogs', blogRoutes);
 router.use('/blog', blogRoutes); // Alias for backward compatibility
 router.use('/posts', blogRoutes); // Alias for admin-panel
-router.get('/categories', require('./modules/blog/blog.controller').getCategories);
+router.use('/categories', categoryRoutes);
 router.use('/orders', orderRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/tickets', ticketRoutes);
+router.use('/contact', contactRoutes);
+router.use('/reviews', reviewRoutes);
 router.use('/admin', adminRoutes);
 router.use('/enrollments', enrollmentRoutes);
 router.use('/uploads', uploadRoutes);

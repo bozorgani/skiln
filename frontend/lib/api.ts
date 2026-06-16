@@ -104,6 +104,26 @@ export const paymentsAPI = {
     api.post('/payments/admin-purchase', { courseId, userId }),
 };
 
+// Contact API
+export const contactAPI = {
+  createMessage: (data: { name: string; email: string; phone?: string; subject: string; message: string }) =>
+    api.post('/contact/messages', data),
+};
+
+// Categories API
+export const categoriesAPI = {
+  getAll: (params?: { type?: 'course' | 'blog'; includeInactive?: boolean }) =>
+    api.get('/categories', { params }),
+};
+
+// Reviews API
+export const reviewsAPI = {
+  getByCourse: (courseId: string, params?: { page?: number; limit?: number }) =>
+    api.get(`/courses/${courseId}/reviews`, { params }),
+  create: (courseId: string, data: { rating: number; title?: string; content: string }) =>
+    api.post(`/courses/${courseId}/reviews`, data),
+};
+
 // Coupons API
 export const couponsAPI = {
   validate: (payload: { code: string; courseId: string; amount?: number }) =>

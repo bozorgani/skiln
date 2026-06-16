@@ -82,7 +82,7 @@ export default function FeedbackPage() {
             <div className="space-y-3 sm:space-y-4">
               {reviews.map((review, index) => (
                 <Card 
-                  key={review.id}
+                  key={review._id || review.id}
                   className="animate-slide-up"
                   style={{ animationDelay: `${index * 30}ms` }}
                 >
@@ -103,7 +103,7 @@ export default function FeedbackPage() {
                           ))}
                         </div>
                         <CardDescription className="mt-2 line-clamp-2 text-sm">
-                          {review.content || 'بدون محتوا'}
+                          {review.content || 'بدون محتوا'}{review.course?.title ? ` • دوره: ${review.course.title}` : ''}
                         </CardDescription>
                       </div>
                       <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap flex-shrink-0 ${
@@ -125,7 +125,7 @@ export default function FeedbackPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleModerate(review.id, true)}
+                            onClick={() => handleModerate(review._id || review.id, true)}
                             className="flex-1 sm:flex-none rounded-xl hover:bg-green-500/10 hover:text-green-600 hover:border-green-500/30"
                           >
                             <Check className="h-4 w-4 ml-2" />
@@ -134,7 +134,7 @@ export default function FeedbackPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleModerate(review.id, false)}
+                            onClick={() => handleModerate(review._id || review.id, false)}
                             className="flex-1 sm:flex-none rounded-xl hover:bg-red-500/10 hover:text-red-600 hover:border-red-500/30"
                           >
                             <X className="h-4 w-4 ml-2" />

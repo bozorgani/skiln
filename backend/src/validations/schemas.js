@@ -97,10 +97,61 @@ const paymentSchemas = {
   }),
 };
 
+const categorySchemas = {
+  create: z.object({
+    name: z.string().trim().min(2).max(120),
+    slug: z.string().trim().max(140).optional(),
+    type: z.enum(['course', 'blog']),
+    description: z.string().trim().max(1000).optional(),
+    icon: z.string().trim().max(80).optional(),
+    color: z.string().trim().max(120).optional(),
+    order: z.coerce.number().min(0).max(100000).optional(),
+    isActive: booleanLike.optional(),
+  }),
+  update: z.object({
+    name: z.string().trim().min(2).max(120).optional(),
+    slug: z.string().trim().max(140).optional(),
+    type: z.enum(['course', 'blog']).optional(),
+    description: z.string().trim().max(1000).optional(),
+    icon: z.string().trim().max(80).optional(),
+    color: z.string().trim().max(120).optional(),
+    order: z.coerce.number().min(0).max(100000).optional(),
+    isActive: booleanLike.optional(),
+  }).refine((value) => Object.keys(value).length > 0, 'At least one field is required'),
+};
+
+const contactSchemas = {
+  create: z.object({
+    name: z.string().trim().min(2).max(120),
+    email: z.string().trim().email().max(180),
+    phone: z.string().trim().max(30).optional().or(z.literal('')),
+    subject: z.string().trim().min(2).max(200),
+    message: z.string().trim().min(10).max(5000),
+  }),
+  update: z.object({
+    status: z.enum(['new', 'read', 'replied', 'closed']).optional(),
+    reply: z.string().trim().max(5000).optional(),
+  }).refine((value) => value.status || value.reply, 'status or reply is required'),
+};
+
+const reviewSchemas = {
+  create: z.object({
+    title: z.string().trim().max(160).optional(),
+    content: z.string().trim().min(3).max(2000),
+    rating: z.coerce.number().int().min(1).max(5),
+  }),
+  moderate: z.object({
+    isApproved: booleanLike,
+  }),
+};
+
 module.exports = {
   authSchemas,
   courseSchemas,
   blogSchemas,
   paymentSchemas,
+  categorySchemas,
+  contactSchemas,
+  reviewSchemas,
   objectId,
 };

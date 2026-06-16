@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import MagneticButton from '@/components/common/MagneticButton';
 import { useToast } from '@/hooks/use-toast';
+import { contactAPI } from '@/lib/api';
 
 const contactInfo = [
   {
@@ -106,23 +107,30 @@ export default function ContactPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      await contactAPI.createMessage(formData);
+      toast({
+        title: 'پیام ارسال شد!',
+        description: 'پیام شما با موفقیت ثبت شد. به زودی با شما تماس خواهیم گرفت.',
+        variant: 'success',
+      });
 
-    setIsSubmitting(false);
-    toast({
-      title: 'پیام ارسال شد!',
-      description: 'پیام شما با موفقیت ارسال شد. به زودی با شما تماس خواهیم گرفت.',
-    });
-
-    // Reset form
-    setFormData({
-      name: '',
-      email: '',
-      phone: '',
-      subject: '',
-      message: '',
-    });
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        subject: '',
+        message: '',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'خطا در ارسال پیام',
+        description: error.response?.data?.message || 'لطفاً کمی بعد دوباره تلاش کنید.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

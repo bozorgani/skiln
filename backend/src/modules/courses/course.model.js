@@ -43,6 +43,10 @@ const courseSchema = new mongoose.Schema(
     category: { type: String, default: 'General' },
     level: { type: String, enum: ['Beginner', 'Intermediate', 'Advanced'], default: 'Beginner' },
     duration: { type: Number }, // در دقیقه
+    ratings: {
+      average: { type: Number, default: 0, min: 0, max: 5 },
+      count: { type: Number, default: 0, min: 0 },
+    },
   },
   { timestamps: true }
 );
