@@ -15,7 +15,7 @@ async function getLessons(courseId: string) {
       headers['Cookie'] = `token=${token.value}`;
     }
     
-    const response = await fetch(`${API_URL}/lessons/course/${courseId}`, {
+    const response = await fetch(`${API_URL}/courses/${courseId}/lessons`, {
       headers,
       credentials: 'include',
       next: { revalidate: 60 },
@@ -26,8 +26,7 @@ async function getLessons(courseId: string) {
     }
     
     const data = await response.json();
-    // Response از getLessonsByCourse یک array است که در data.data قرار دارد
-    return Array.isArray(data.data) ? data.data : [];
+    return data.data?.lessons || [];
   } catch (error) {
     return [];
   }

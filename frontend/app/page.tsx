@@ -121,7 +121,7 @@ function CourseCardOld({ course, index }: { course: any; index?: number }) {
             src={getImageUrl(course.thumbnail)}
             alt={course.title}
             fill
-            className="object-cover group-hover:scale-125 transition-transform duration-[2s] ease-out"
+            className="object-cover group-hover:scale-125 transition-transform duration-1000 ease-out"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             loading="lazy"
           />

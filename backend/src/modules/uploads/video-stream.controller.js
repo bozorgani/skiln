@@ -1,122 +1,106 @@
-const fs = require('fs');
 const path = require('path');
 const ApiError = require('../../core/ApiError');
+const courseService = require('../courses/course.service');
+const { getObjectHead, getObjectStream } = require('../../services/storage.service');
 
-/**
- * Handle CORS preflight (OPTIONS) requests
- */
-exports.handleOptions = (req, res) => {
+const getAllowedOrigins = () => [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  process.env.FRONTEND_URL,
+  process.env.ADMIN_PANEL_URL,
+].filter(Boolean);
+
+const setVideoCorsHeaders = (req, res) => {
   const origin = req.headers.origin;
-  const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    process.env.FRONTEND_URL,
-    process.env.ADMIN_PANEL_URL,
-  ].filter(Boolean);
+  const allowedOrigins = getAllowedOrigins();
 
   if (!origin || process.env.NODE_ENV === 'development' || allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin || 'http://localhost:3000');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-  } else if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Origin', origin || process.env.FRONTEND_URL || 'http://localhost:3000');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
 
-  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type, Authorization, X-Requested-With');
   res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
-  res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
-  
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
+};
+
+const getContentType = (filename, fallback) => {
+  if (fallback) return fallback;
+  const ext = path.extname(filename).toLowerCase();
+  if (ext === '.webm') return 'video/webm';
+  if (ext === '.ogg') return 'video/ogg';
+  if (ext === '.mov') return 'video/quicktime';
+  return 'video/mp4';
+};
+
+exports.handleOptions = (req, res) => {
+  setVideoCorsHeaders(req, res);
+  res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Access-Control-Max-Age', '86400');
   res.status(200).end();
 };
 
-/**
- * Stream video file with proper CORS headers
- */
-exports.streamVideo = (req, res, next) => {
-  console.log('[VideoStream] Request received:', req.method, req.path, req.params);
-  const filename = req.params.filename;
-  const videoPath = path.join(__dirname, '../../../uploads/videos', filename);
-  console.log('[VideoStream] Video path:', videoPath);
+exports.streamVideo = async (req, res, next) => {
+  try {
+    setVideoCorsHeaders(req, res);
 
-  // Set CORS headers FIRST (before any other operations)
-  const origin = req.headers.origin;
-  const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    process.env.FRONTEND_URL,
-    process.env.ADMIN_PANEL_URL,
-  ].filter(Boolean);
+    const filename = path.basename(req.params.filename || '');
+    if (!filename) throw new ApiError(400, 'نام فایل ویدیو نامعتبر است');
 
-  if (!origin || process.env.NODE_ENV === 'development' || allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin || 'http://localhost:3000');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-  } else if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-  }
+    const access = await courseService.findVideoLessonAccess(filename, req.user || null);
+    if (!access.found && !['admin', 'teacher'].includes(req.user?.role)) {
+      throw new ApiError(404, 'ویدیو یافت نشد');
+    }
+    if (access.found && !access.canAccess) {
+      throw new ApiError(403, 'برای مشاهده این ویدیو باید در دوره ثبت‌نام کنید');
+    }
 
-  res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-  
-  // Override helmet's restrictive CORS headers for video streaming
-  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
+    const key = `videos/${filename}`;
+    let head;
+    try {
+      head = await getObjectHead(key);
+    } catch (error) {
+      throw new ApiError(404, 'ویدیو یافت نشد');
+    }
 
-  // Check if file exists
-  if (!fs.existsSync(videoPath)) {
-    res.status(404).json({ error: 'ویدیو یافت نشد' });
-    return;
-  }
+    const fileSize = head.contentLength;
+    const range = req.headers.range;
+    const contentType = getContentType(filename, head.contentType);
 
-  const stat = fs.statSync(videoPath);
-  const fileSize = stat.size;
-  const range = req.headers.range;
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Content-Type', contentType);
 
-  res.setHeader('Accept-Ranges', 'bytes');
+    if (req.method === 'HEAD') {
+      res.setHeader('Content-Length', fileSize);
+      return res.status(200).end();
+    }
 
-  // Handle Range requests for video streaming
-  if (range) {
-    const parts = range.replace(/bytes=/, '').split('-');
-    const start = parseInt(parts[0], 10);
-    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-    const chunksize = (end - start) + 1;
-    
-    // Validate range
-    if (start >= fileSize || end >= fileSize || start > end) {
-      res.status(416).setHeader('Content-Range', `bytes */${fileSize}`).end();
+    if (range) {
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = Number.parseInt(parts[0], 10);
+      const end = parts[1] ? Number.parseInt(parts[1], 10) : fileSize - 1;
+
+      if (!Number.isFinite(start) || start >= fileSize || end >= fileSize || start > end) {
+        return res.status(416).setHeader('Content-Range', `bytes */${fileSize}`).end();
+      }
+
+      const chunkSize = (end - start) + 1;
+      const stream = await getObjectStream(key, `bytes=${start}-${end}`);
+      res.status(206);
+      res.setHeader('Content-Range', `bytes ${start}-${end}/${fileSize}`);
+      res.setHeader('Content-Length', chunkSize);
+      stream.pipe(res);
+      stream.on('error', next);
       return;
     }
-    
-    const file = fs.createReadStream(videoPath, { start, end });
-    
-    // Set headers for 206 Partial Content
-    res.status(206);
-    res.setHeader('Content-Range', `bytes ${start}-${end}/${fileSize}`);
-    res.setHeader('Content-Length', chunksize);
-    res.setHeader('Content-Type', 'video/mp4');
-    
-    file.pipe(res);
-    file.on('error', (err) => {
-      console.error('Error streaming video:', err);
-      if (!res.headersSent) {
-        res.status(500).end();
-      }
-    });
-  } else {
-    // Full file request
+
+    const stream = await getObjectStream(key);
     res.status(200);
     res.setHeader('Content-Length', fileSize);
-    res.setHeader('Content-Type', 'video/mp4');
-    
-    const file = fs.createReadStream(videoPath);
-    file.pipe(res);
-    file.on('error', (err) => {
-      console.error('Error streaming video:', err);
-      if (!res.headersSent) {
-        res.status(500).end();
-      }
-    });
+    stream.pipe(res);
+    stream.on('error', next);
+  } catch (error) {
+    next(error);
   }
 };
-

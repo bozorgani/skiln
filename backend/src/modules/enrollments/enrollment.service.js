@@ -151,7 +151,6 @@ const getEnrollment = async (courseId, userId) => {
   if (hasPaidOrder && !isEnrolledInStudents) {
     course.students.push(userId);
     await course.save();
-    console.log(`[Enrollment Fix] User ${userId} was added to course.students based on paid order`);
   }
 
   // Get order and payment info
@@ -207,7 +206,6 @@ const getEnrollment = async (courseId, userId) => {
     }
   } catch (error) {
     // If progress doesn't exist, use defaults
-    console.log('Progress not found for user, using defaults');
   }
 
   return {

@@ -44,7 +44,6 @@ api.interceptors.response.use(
     
     // Handle rate limiting (429)
     if (error.response?.status === 429) {
-      console.warn('Rate limit exceeded. Please wait before making more requests.');
       // Don't redirect on rate limit, just log warning
     }
     
@@ -83,7 +82,7 @@ export const coursesAPI = {
 // Lessons API
 export const lessonsAPI = {
   getByCourse: (courseId: string) => api.get(`/courses/${courseId}/lessons`),
-  getById: (id: string) => api.get(`/lessons/${id}`),
+  getById: (id: string) => api.get(`/courses/lessons/${id}`),
   create: (courseId: string, data: any) =>
     api.post(`/courses/${courseId}/lessons`, data),
   update: (id: string, data: any) => api.put(`/lessons/${id}`, data),

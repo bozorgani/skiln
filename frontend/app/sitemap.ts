@@ -51,9 +51,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
       return [...staticPages, ...coursePages];
     }
-  } catch (error) {
-    // If API fails, return static pages only
-    console.error('Error fetching courses for sitemap:', error);
+  } catch {
+    // If API is unavailable during build/deploy, return static pages only.
   }
 
   return staticPages;

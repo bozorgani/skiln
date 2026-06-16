@@ -45,14 +45,12 @@ export function setToken(token: string): void {
       secure: process.env.NODE_ENV === 'production' // HTTPS only in production
     });
   } catch (error) {
-    console.warn('[TokenManager] Failed to set cookie:', error);
   }
 
   // Also store in localStorage as fallback
   try {
     localStorage.setItem(TOKEN_STORAGE_KEY, token);
   } catch (error) {
-    console.warn('[TokenManager] Failed to set localStorage:', error);
   }
 }
 
@@ -68,14 +66,12 @@ export function removeToken(): void {
   try {
     Cookies.remove(TOKEN_COOKIE_NAME, { path: '/' });
   } catch (error) {
-    console.warn('[TokenManager] Failed to remove cookie:', error);
   }
 
   // Remove from localStorage
   try {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
   } catch (error) {
-    console.warn('[TokenManager] Failed to remove localStorage:', error);
   }
 }
 

@@ -60,7 +60,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       if (savedUser && savedToken) {
         try {
           const userData = JSON.parse(savedUser);
-          console.log('[AdminLayout] Initializing user from localStorage:', userData);
           if (userData.role === 'admin') {
             setUser(userData);
             setInitialized(true);
@@ -77,7 +76,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     // Don't redirect while loading - give it more time
     if (loading) {
-      console.log('[AdminLayout] Still loading, waiting...');
       return;
     }
     
@@ -90,7 +88,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         if (savedUser) {
           try {
             finalUser = JSON.parse(savedUser);
-            console.log('[AdminLayout] Found user in localStorage, using it');
           } catch (e) {
             console.error('[AdminLayout] Error parsing saved user:', e);
           }
@@ -101,17 +98,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       if (!finalUser || finalUser.role !== 'admin') {
         // Only redirect if not already on login page
         if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-          console.log('[AdminLayout] ❌ Redirecting to login');
-          console.log('  - user from context:', user);
-          console.log('  - user from localStorage:', finalUser);
-          console.log('  - role:', finalUser?.role);
-          console.log('  - token in localStorage:', typeof window !== 'undefined' ? (localStorage.getItem('token') ? 'YES' : 'NO') : 'N/A');
-          console.log('  - localStorage user:', typeof window !== 'undefined' ? (localStorage.getItem('user') ? 'YES' : 'NO') : 'N/A');
           // Use window.location for reliable redirect
           window.location.href = '/login';
         }
       } else {
-        console.log('[AdminLayout] ✅ User authenticated, role =', finalUser.role);
       }
     }, 1000); // Wait 1 second after loading finishes to give checkAuth time
     
@@ -156,7 +146,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   if (!currentUser || currentUser.role !== 'admin') {
-    console.log('[AdminLayout] No user or not admin, returning null');
     return null;
   }
 

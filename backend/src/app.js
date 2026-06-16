@@ -88,6 +88,8 @@ app.use('/uploads/videos', (req, res, next) => {
 // Static files for uploads (images, etc.) - videos are handled by video-stream route above
 // این باید بعد از video route باشد تا فقط برای non-video files کار کند
 app.use('/uploads/images', express.static(path.join(__dirname, '..', 'uploads', 'images')));
+app.get('/uploads/images/:filename', require('./modules/uploads/upload.controller').streamImage);
+app.head('/uploads/images/:filename', require('./modules/uploads/upload.controller').streamImage);
 // General static files - اما skip می‌کنیم اگر video request باشد
 app.use('/uploads', (req, res, next) => {
   // Skip if it's a video request (already handled above)

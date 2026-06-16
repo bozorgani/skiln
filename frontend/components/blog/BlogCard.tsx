@@ -46,7 +46,7 @@ export default function BlogCard({ blog, index = 0 }: BlogCardProps) {
               src={blog.featuredImage || '/placeholder-blog.jpg'}
               alt={blog.title}
               fill
-              className="object-cover group-hover:scale-125 transition-transform duration-[2s] ease-out"
+              className="object-cover group-hover:scale-125 transition-transform duration-1000 ease-out"
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               loading="lazy"
             />

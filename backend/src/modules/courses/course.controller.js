@@ -27,7 +27,7 @@ exports.setCourseStatus = catchAsync(async (req, res) => {
 
 exports.listCourses = catchAsync(async (req, res) => {
   const canViewUnpublished = ['admin', 'teacher'].includes(req.user?.role);
-  const courses = await courseService.listCourses({ ...req.query, canViewUnpublished });
+  const courses = await courseService.listCourses({ ...req.query, canViewUnpublished, user: req.user || null });
   // اگر courses یک array است، آن را به صورت { courses: [...] } برگردان
   // اگر courses یک object است (با pagination)، آن را همانطور برگردان
   const responseData = Array.isArray(courses) 
@@ -38,7 +38,7 @@ exports.listCourses = catchAsync(async (req, res) => {
 
 exports.getCourse = catchAsync(async (req, res) => {
   const canViewUnpublished = ['admin', 'teacher'].includes(req.user?.role);
-  const course = await courseService.getCourseById(req.params.id, { ...req.query, canViewUnpublished });
+  const course = await courseService.getCourseById(req.params.id, { ...req.query, canViewUnpublished, user: req.user || null });
   // Response format را مطابق با frontend تنظیم کن
   sendResponse(res, { data: { course }, message: 'Course retrieved' });
 });
@@ -62,8 +62,7 @@ exports.getCourseAnalytics = catchAsync(async (req, res) => {
 
 // Lessons controllers
 exports.getLessonsByCourse = catchAsync(async (req, res) => {
-  const userId = req.user?._id || null; // Get user ID if authenticated
-  const result = await courseService.getLessonsByCourse(req.params.courseId, userId);
+  const result = await courseService.getLessonsByCourse(req.params.courseId, req.user || null);
   sendResponse(res, { data: result, message: 'Lessons retrieved' });
 });
 
@@ -80,11 +79,11 @@ exports.getLessonById = catchAsync(async (req, res) => {
       const extractedCourseId = parts[0];
       const extractedSectionIndex = parseInt(parts[1]);
       const extractedLessonIndex = parseInt(parts[2]);
-      result = await courseService.getLessonById(extractedCourseId, `${extractedCourseId}-${extractedSectionIndex}-${extractedLessonIndex}`, null);
+      result = await courseService.getLessonById(extractedCourseId, `${extractedCourseId}-${extractedSectionIndex}-${extractedLessonIndex}`, null, req.user || null);
     } else {
       // اگر فرمت درست نیست، سعی کن از courseId استفاده کن
       if (courseId) {
-        result = await courseService.getLessonById(courseId, lessonId, null);
+        result = await courseService.getLessonById(courseId, lessonId, null, req.user || null);
       } else {
         throw new Error('Invalid lesson ID format. Expected format: courseId-sectionIndex-lessonIndex');
       }
@@ -92,7 +91,7 @@ exports.getLessonById = catchAsync(async (req, res) => {
   } 
   // اگر sectionIndex و lessonIndex وجود دارند (فرمت قدیمی)
   else if (sectionIndex !== undefined && lessonIndex !== undefined && courseId) {
-    result = await courseService.getLessonById(courseId, parseInt(lessonIndex), parseInt(sectionIndex));
+    result = await courseService.getLessonById(courseId, parseInt(lessonIndex), parseInt(sectionIndex), req.user || null);
   } 
   else {
     throw new Error('Invalid lesson ID format');

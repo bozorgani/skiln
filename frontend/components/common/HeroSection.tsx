@@ -28,7 +28,7 @@ export default function HeroSection({ featuredCourse }: HeroSectionProps) {
             src={getImageUrl(featuredCourse.thumbnail)}
             alt={`تصویر دوره ${featuredCourse.title} - Skiln`}
             fill
-            className="object-cover group-hover:scale-110 transition-transform duration-[5s] ease-out"
+            className="object-cover group-hover:scale-110 transition-transform duration-1000 ease-out"
             sizes="100vw"
             priority
             quality={90}

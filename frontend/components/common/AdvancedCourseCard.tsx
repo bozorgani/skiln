@@ -55,7 +55,7 @@ export default function AdvancedCourseCard({ course, index = 0 }: AdvancedCourse
             src={getImageUrl(course.thumbnail)}
             alt={`تصویر دوره ${course.title} - Skiln`}
             fill
-            className="object-cover group-hover:scale-125 transition-transform duration-[2s] ease-out"
+            className="object-cover group-hover:scale-125 transition-transform duration-1000 ease-out"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             priority={index < 4}
             quality={85}

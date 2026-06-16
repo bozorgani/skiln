@@ -117,13 +117,11 @@ export default function VideoPlayer({
   // Build full video URL if it's a relative path
   const getVideoUrl = () => {
     if (!url) {
-      console.warn('[VideoPlayer] No URL provided');
       return '';
     }
     
     // If it's already a full URL (http/https/data), return as is
     if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
-      console.log('[VideoPlayer] Full URL:', url);
       return url;
     }
     
@@ -131,19 +129,11 @@ export default function VideoPlayer({
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
     const baseUrl = API_URL.replace('/api', '');
     const fullUrl = url.startsWith('/') ? `${baseUrl}${url}` : `${baseUrl}/${url}`;
-    console.log('[VideoPlayer] Constructed URL:', { original: url, full: fullUrl, baseUrl });
     return fullUrl;
   };
   
   const videoUrl = getVideoUrl();
   
-  // Log video URL for debugging
-  useEffect(() => {
-    console.log('[VideoPlayer] Video URL:', videoUrl);
-    console.log('[VideoPlayer] Lesson:', lesson);
-    console.log('[VideoPlayer] Props:', { url, lessonId, courseId });
-  }, [videoUrl, url, lessonId, courseId, lesson]);
-
   return (
     <div className="relative w-full h-full">
       <div className="w-full h-full bg-black">
@@ -158,21 +148,17 @@ export default function VideoPlayer({
               playbackRate={playbackRate}
               onProgress={handleProgress}
               onError={(error: any) => {
-                console.error('[VideoPlayer] Error playing video:', error);
-                console.error('[VideoPlayer] URL:', videoUrl);
                 toast({
                   title: 'خطا در پخش ویدیو',
                   description: 'لطفاً بررسی کنید که لینک ویدیو معتبر است',
                   variant: 'destructive',
                 });
               }}
-              onReady={() => {
-                console.log('[VideoPlayer] Video ready to play');
-              }}
               config={{
                 file: {
                   attributes: {
                     controlsList: 'nodownload',
+                    crossOrigin: 'use-credentials',
                     style: {
                       width: '100%',
                       height: '100%',
@@ -190,15 +176,6 @@ export default function VideoPlayer({
                   playerOptions: { responsive: true },
                 },
               }}
-              onStart={() => {
-                console.log('[VideoPlayer] Video started playing');
-              }}
-              onBuffer={() => {
-                console.log('[VideoPlayer] Video buffering...');
-              }}
-              onBufferEnd={() => {
-                console.log('[VideoPlayer] Video buffer ended');
-              }}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-white">
@@ -208,11 +185,6 @@ export default function VideoPlayer({
                 <p className="text-sm text-muted-foreground">
                   لطفاً لینک ویدیو را در پنل مدیریت تنظیم کنید
                 </p>
-                {process.env.NODE_ENV === 'development' && (
-                  <p className="text-xs mt-2 text-red-500">
-                    Debug: url = {url || 'empty'}, videoUrl = {videoUrl || 'empty'}
-                  </p>
-                )}
               </div>
             </div>
           )

@@ -22,11 +22,9 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
       if (process.env.NODE_ENV === 'development') {
-        console.log('[API Request] Token added to header:', token.substring(0, 20) + '...');
       }
     } else {
       if (process.env.NODE_ENV === 'development') {
-        console.log('[API Request] No token found');
       }
     }
     
@@ -137,7 +135,7 @@ export const coursesAPI = {
 
 export const lessonsAPI = {
   getByCourse: (courseId: string) => api.get(`/courses/${courseId}/lessons`),
-  getById: (id: string) => api.get(`/lessons/${id}`),
+  getById: (id: string) => api.get(`/courses/lessons/${id}`),
   create: (courseId: string, data: any) => api.post(`/courses/${courseId}/lessons`, data),
   update: (id: string, data: any) => api.put(`/lessons/${id}`, data),
   delete: (id: string) => api.delete(`/lessons/${id}`),

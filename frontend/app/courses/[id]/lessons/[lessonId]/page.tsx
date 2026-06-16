@@ -80,13 +80,10 @@ async function getLessons(courseId: string) {
     });
     
     if (!response.ok) {
-      console.error('Failed to fetch lessons:', response.status, response.statusText);
       return { lessons: [], isEnrolled: false };
     }
     
     const data = await response.json();
-    console.log('Lessons data:', data);
-    
     // The backend returns { success: true, message: '...', data: { lessons: [...], isEnrolled: true } }
     // sendResponse wraps data in { success, message, data }
     // So it becomes { success, message, data: { lessons: [...], isEnrolled: true } }
@@ -177,7 +174,6 @@ async function getEnrollment(courseId: string) {
     if (!response.ok) {
       // Log error for debugging
       if (process.env.NODE_ENV === 'development') {
-        console.log(`[getEnrollment] API returned ${response.status} for course ${courseId}`);
       }
       return null;
     }
@@ -186,7 +182,6 @@ async function getEnrollment(courseId: string) {
     return data.data?.enrollment || null;
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
-      console.error('[getEnrollment] Error:', error);
     }
     return null;
   }
@@ -237,26 +232,15 @@ export default async function LessonPage({
   const currentUser = await getCurrentUser();
   const isAdmin = currentUser?.role === 'admin';
   
-  // Debug logs
-  console.log('[Lesson Page] Course:', course);
-  console.log('[Lesson Page] Lessons:', lessons);
-  console.log('[Lesson Page] Course Sections:', course?.sections);
-  
   // Merge progress data into enrollment for backward compatibility
   if (enrollment && progress) {
     enrollment.progress = progress;
   }
 
   if (!lesson || !course) {
-    console.error('[Lesson Page] Missing lesson or course:', { lesson: !!lesson, course: !!course });
     notFound();
   }
   
-  // If lessons are empty but course has sections, log a warning
-  if ((!lessons || lessons.length === 0) && course?.sections && course.sections.length > 0) {
-    console.warn('[Lesson Page] Lessons array is empty but course has sections:', course.sections);
-  }
-
   // پیدا کردن درس فعلی بر اساس _id یا ساخت lessonId کامل
   const fullLessonId = lessonId.includes('-') ? lessonId : `${id}-${lessonId}`;
   const currentIndex = lessons.findIndex((l: any) => 
@@ -286,15 +270,6 @@ export default async function LessonPage({
   // enrollment is truthy if it exists (object), or use isEnrolledFromLessons boolean
   const finalIsEnrolled = !!enrollment || isEnrolledFromLessons || false;
   
-  // Debug log in development
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[Lesson Page] Enrollment check:', {
-      enrollment: !!enrollment,
-      isEnrolledFromLessons,
-      finalIsEnrolled,
-      courseId: id,
-    });
-  }
   
   const canAccessCurrentLesson = isCurrentLessonFree || isCourseFree || finalIsEnrolled || isAdmin;
 
@@ -337,10 +312,6 @@ export default async function LessonPage({
 
   // Get video URL - از content استفاده می‌کنیم که لینک ویدیو است
   const videoUrl = lesson.content || lesson.videoUrl || '';
-  
-  // Debug log
-  console.log('[Lesson Page] Video URL:', videoUrl);
-  console.log('[Lesson Page] Lesson data:', lesson);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">

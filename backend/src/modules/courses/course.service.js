@@ -143,7 +143,31 @@ const getCourseById = async (id, filters = {}) => {
   if (!course) {
     throw new ApiError(404, 'Course not found');
   }
-  return course;
+
+  const user = filters.user || null;
+  const courseObject = course.toObject();
+  const canSeeAllContent = user && (user.role === 'admin' || isTeacherOwner(course, user) || isStudentEnrolled(course, user._id));
+
+  if (!canSeeAllContent && courseObject.sections) {
+    for (let sectionIndex = 0; sectionIndex < courseObject.sections.length; sectionIndex += 1) {
+      const section = courseObject.sections[sectionIndex];
+      for (let lessonIndex = 0; lessonIndex < (section.lessons || []).length; lessonIndex += 1) {
+        const lesson = section.lessons[lessonIndex];
+        const canAccessPublic = courseObject.price === 0 || section.isFree || lesson.isFree || lesson.isPreview;
+        if (!canAccessPublic) {
+          delete lesson.content;
+          delete lesson.videoUrl;
+          lesson.locked = true;
+          lesson.canAccess = false;
+        } else {
+          lesson.canAccess = true;
+          lesson.locked = false;
+        }
+      }
+    }
+  }
+
+  return courseObject;
 };
 
 const setCourseStatus = async (id, status) => {
@@ -174,7 +198,31 @@ const deleteCourse = async (id) => {
   if (!course) {
     throw new ApiError(404, 'Course not found');
   }
-  return course;
+
+  const user = filters.user || null;
+  const courseObject = course.toObject();
+  const canSeeAllContent = user && (user.role === 'admin' || isTeacherOwner(course, user) || isStudentEnrolled(course, user._id));
+
+  if (!canSeeAllContent && courseObject.sections) {
+    for (let sectionIndex = 0; sectionIndex < courseObject.sections.length; sectionIndex += 1) {
+      const section = courseObject.sections[sectionIndex];
+      for (let lessonIndex = 0; lessonIndex < (section.lessons || []).length; lessonIndex += 1) {
+        const lesson = section.lessons[lessonIndex];
+        const canAccessPublic = courseObject.price === 0 || section.isFree || lesson.isFree || lesson.isPreview;
+        if (!canAccessPublic) {
+          delete lesson.content;
+          delete lesson.videoUrl;
+          lesson.locked = true;
+          lesson.canAccess = false;
+        } else {
+          lesson.canAccess = true;
+          lesson.locked = false;
+        }
+      }
+    }
+  }
+
+  return courseObject;
 };
 
 const getCourseAnalytics = async (id) => {
@@ -198,142 +246,174 @@ const getCourseAnalytics = async (id) => {
 };
 
 // Lessons management
-const getLessonsByCourse = async (courseId, userId = null) => {
-  const course = await Course.findById(courseId).select('sections students price');
-  if (!course) {
-    throw new ApiError(404, 'Course not found');
-  }
-  
-  // Check if user is enrolled
-  let isEnrolled = false;
-  if (userId) {
-    isEnrolled = course.students.some(
-      (studentId) => studentId.toString() === userId.toString()
-    );
-    
-    // Also check if there's a paid order (fallback check)
-    if (!isEnrolled) {
-      const Order = require('../orders/order.model');
-      // Check for paid orders first, then check for any order (legacy data)
-      let hasPaidOrder = await Order.findOne({
-        user: userId,
-        course: courseId,
-        status: 'paid',
-      });
-      
-      // If no paid order found, check for any order (legacy data without status field)
-      if (!hasPaidOrder) {
-        const anyOrder = await Order.findOne({
-          user: userId,
-          course: courseId,
-        });
-        // If order exists but has no status field, consider it as paid
-        if (anyOrder && (!anyOrder.status || anyOrder.status === null)) {
-          hasPaidOrder = anyOrder;
-        }
-      }
-      
-      if (hasPaidOrder) {
-        // User has paid but not enrolled - enroll them now
-        course.students.push(userId);
-        await course.save();
-        isEnrolled = true;
-        console.log(`[Lessons Fix] User ${userId} was enrolled based on paid order`);
-      }
-    }
-  }
-  
-  // Also check if course is free
-  const isCourseFree = course.price === 0;
-  
-  const lessons = [];
-  course.sections.forEach((section, sectionIndex) => {
-    const isSectionFree = section.isFree || false;
-    section.lessons.forEach((lesson, lessonIndex) => {
-      // ایجاد یک _id مجازی برای هر درس (ترکیب courseId-sectionIndex-lessonIndex)
-      const virtualId = `${courseId}-${sectionIndex}-${lessonIndex}`;
-      lessons.push({
-        ...lesson.toObject(),
-        _id: virtualId, // _id مجازی برای استفاده در frontend
-        sectionIndex,
-        lessonIndex,
-        sectionTitle: section.title,
-        sectionIsFree: isSectionFree, // اضافه کردن فیلد isFree جلسه
-      });
-    });
-  });
-  
-  return {
-    lessons,
-    isEnrolled: isEnrolled || isCourseFree, // User is enrolled if in students array or course is free
-  };
+const toIdString = (value) => (value?._id || value)?.toString();
+
+const hasPaidOrder = async (courseId, userId) => {
+  if (!userId) return false;
+  const Order = require('../orders/order.model');
+  const paidOrder = await Order.findOne({ user: userId, course: courseId, status: 'paid' });
+  if (paidOrder) return true;
+
+  const legacyOrder = await Order.findOne({ user: userId, course: courseId });
+  return !!(legacyOrder && (!legacyOrder.status || legacyOrder.status === null));
 };
 
-const getLessonById = async (courseId, lessonIdOrIndex, sectionIndexOrNull) => {
-  const course = await Course.findById(courseId).select('sections');
-  if (!course) {
-    throw new ApiError(404, 'Course not found');
+const isTeacherOwner = (course, user) => {
+  if (!course || !user || user.role !== 'teacher') return false;
+  return toIdString(course.teacher) === toIdString(user);
+};
+
+const isStudentEnrolled = (course, userId) => {
+  if (!course || !userId) return false;
+  return course.students?.some((studentId) => toIdString(studentId) === userId.toString()) || false;
+};
+
+const canAccessLesson = async ({ course, section, lesson, user }) => {
+  if (!course || !section || !lesson) return false;
+  if (course.price === 0 || section.isFree || lesson.isFree || lesson.isPreview) return true;
+  if (!user) return false;
+  if (user.role === 'admin' || isTeacherOwner(course, user)) return true;
+  if (isStudentEnrolled(course, user._id)) return true;
+
+  const paid = await hasPaidOrder(course._id, user._id);
+  if (paid) {
+    course.students.push(user._id);
+    await course.save();
+    return true;
   }
-  
-  let sectionIndex, lessonIndex;
-  
-  // اگر lessonId به صورت "courseId-sectionIndex-lessonIndex" است
+
+  return false;
+};
+
+const parseVirtualLessonId = (courseId, lessonIdOrIndex, sectionIndexOrNull) => {
   if (typeof lessonIdOrIndex === 'string' && lessonIdOrIndex.includes('-')) {
     const parts = lessonIdOrIndex.split('-');
     if (parts.length === 3) {
-      sectionIndex = parseInt(parts[1]);
-      lessonIndex = parseInt(parts[2]);
-    } else {
-      throw new ApiError(400, 'Invalid lesson ID format');
+      return {
+        courseId: parts[0],
+        sectionIndex: Number.parseInt(parts[1], 10),
+        lessonIndex: Number.parseInt(parts[2], 10),
+      };
     }
-  } else if (sectionIndexOrNull !== null && sectionIndexOrNull !== undefined) {
-    // اگر به صورت sectionIndex و lessonIndex فرستاده شده
-    sectionIndex = parseInt(sectionIndexOrNull);
-    lessonIndex = parseInt(lessonIdOrIndex);
-  } else {
-    // تلاش برای پیدا کردن درس با جستجو در تمام sections
+  }
+
+  if (sectionIndexOrNull !== null && sectionIndexOrNull !== undefined) {
+    return {
+      courseId,
+      sectionIndex: Number.parseInt(sectionIndexOrNull, 10),
+      lessonIndex: Number.parseInt(lessonIdOrIndex, 10),
+    };
+  }
+
+  return { courseId, sectionIndex: null, lessonIndex: null };
+};
+
+const buildLessonDto = ({ courseId, section, sectionIndex, lesson, lessonIndex, canAccess }) => {
+  const dto = {
+    ...lesson.toObject(),
+    _id: `${courseId}-${sectionIndex}-${lessonIndex}`,
+    sectionIndex,
+    lessonIndex,
+    sectionTitle: section.title,
+    sectionIsFree: section.isFree || false,
+    canAccess,
+    locked: !canAccess,
+  };
+
+  if (!canAccess) {
+    delete dto.content;
+    delete dto.videoUrl;
+  }
+
+  return dto;
+};
+
+const getLessonsByCourse = async (courseId, user = null) => {
+  const course = await Course.findById(courseId).select('sections students price teacher');
+  if (!course) {
+    throw new ApiError(404, 'Course not found');
+  }
+
+  const lessons = [];
+  for (let sectionIndex = 0; sectionIndex < course.sections.length; sectionIndex += 1) {
+    const section = course.sections[sectionIndex];
+    for (let lessonIndex = 0; lessonIndex < section.lessons.length; lessonIndex += 1) {
+      const lesson = section.lessons[lessonIndex];
+      const access = await canAccessLesson({ course, section, lesson, user });
+      lessons.push(buildLessonDto({ courseId, section, sectionIndex, lesson, lessonIndex, canAccess: access }));
+    }
+  }
+
+  const isEnrolled = user
+    ? user.role === 'admin' || isTeacherOwner(course, user) || course.price === 0 || isStudentEnrolled(course, user._id)
+    : course.price === 0;
+
+  return { lessons, isEnrolled };
+};
+
+const getLessonById = async (courseId, lessonIdOrIndex, sectionIndexOrNull, user = null) => {
+  const parsed = parseVirtualLessonId(courseId, lessonIdOrIndex, sectionIndexOrNull);
+  const resolvedCourseId = parsed.courseId || courseId;
+  const course = await Course.findById(resolvedCourseId).select('sections students price teacher');
+  if (!course) {
+    throw new ApiError(404, 'Course not found');
+  }
+
+  let { sectionIndex, lessonIndex } = parsed;
+
+  if (sectionIndex === null || lessonIndex === null || Number.isNaN(sectionIndex) || Number.isNaN(lessonIndex)) {
     let found = false;
-    for (let sIdx = 0; sIdx < course.sections.length; sIdx++) {
+    for (let sIdx = 0; sIdx < course.sections.length; sIdx += 1) {
       const section = course.sections[sIdx];
-      for (let lIdx = 0; lIdx < section.lessons.length; lIdx++) {
+      for (let lIdx = 0; lIdx < section.lessons.length; lIdx += 1) {
         const lesson = section.lessons[lIdx];
-        // مقایسه با title (به عنوان fallback)
-        if (lesson.title && typeof lessonIdOrIndex === 'string') {
-          if (lesson.title === lessonIdOrIndex || `${courseId}-${sIdx}-${lIdx}` === lessonIdOrIndex) {
-            sectionIndex = sIdx;
-            lessonIndex = lIdx;
-            found = true;
-            break;
-          }
+        if (lesson.title === lessonIdOrIndex || `${resolvedCourseId}-${sIdx}-${lIdx}` === lessonIdOrIndex) {
+          sectionIndex = sIdx;
+          lessonIndex = lIdx;
+          found = true;
+          break;
         }
       }
       if (found) break;
     }
-    if (!found) {
-      throw new ApiError(404, 'Lesson not found');
+    if (!found) throw new ApiError(404, 'Lesson not found');
+  }
+
+  const section = course.sections[sectionIndex];
+  if (!section) throw new ApiError(404, 'Section not found');
+
+  const lesson = section.lessons[lessonIndex];
+  if (!lesson) throw new ApiError(404, 'Lesson not found');
+
+  const access = await canAccessLesson({ course, section, lesson, user });
+  if (!access) {
+    throw new ApiError(403, 'برای مشاهده این درس باید در دوره ثبت‌نام کنید');
+  }
+
+  return buildLessonDto({ courseId: resolvedCourseId, section, sectionIndex, lesson, lessonIndex, canAccess: true });
+};
+
+const findVideoLessonAccess = async (filename, user = null) => {
+  const escaped = String(filename).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const course = await Course.findOne({
+    'sections.lessons.content': { $regex: `(?:^|/)${escaped}(?:$|[?#])` },
+  }).select('sections students price teacher');
+
+  if (!course) return { found: false, canAccess: false };
+
+  for (let sectionIndex = 0; sectionIndex < course.sections.length; sectionIndex += 1) {
+    const section = course.sections[sectionIndex];
+    for (let lessonIndex = 0; lessonIndex < section.lessons.length; lessonIndex += 1) {
+      const lesson = section.lessons[lessonIndex];
+      const content = lesson.content || lesson.videoUrl || '';
+      if (new RegExp(`(?:^|/)${escaped}(?:$|[?#])`).test(content)) {
+        const access = await canAccessLesson({ course, section, lesson, user });
+        return { found: true, canAccess: access, course, sectionIndex, lessonIndex };
+      }
     }
   }
-  
-  if (!course.sections[sectionIndex]) {
-    throw new ApiError(404, 'Section not found');
-  }
-  
-  if (!course.sections[sectionIndex].lessons[lessonIndex]) {
-    throw new ApiError(404, 'Lesson not found');
-  }
-  
-  const section = course.sections[sectionIndex];
-  const isSectionFree = section.isFree || false;
-  const virtualId = `${courseId}-${sectionIndex}-${lessonIndex}`;
-  
-  return {
-    ...section.lessons[lessonIndex].toObject(),
-    _id: virtualId, // _id مجازی
-    sectionIndex,
-    lessonIndex,
-    sectionTitle: section.title,
-    sectionIsFree: isSectionFree,
-  };
+
+  return { found: false, canAccess: false };
 };
 
 const createLesson = async (courseId, sectionIndex, lessonData) => {
@@ -414,6 +494,7 @@ module.exports = {
   getCourseAnalytics,
   getLessonsByCourse,
   getLessonById,
+  findVideoLessonAccess,
   createLesson,
   updateLesson,
   deleteLesson,

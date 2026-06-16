@@ -110,8 +110,6 @@ export default function EditCoursePage() {
       
       // Debug: Log course data to check shortDescription
       if (process.env.NODE_ENV === 'development') {
-        console.log('[Edit Course] Full course data:', course);
-        console.log('[Edit Course] shortDescription:', course?.shortDescription);
       }
       
       if (course) {
@@ -145,8 +143,6 @@ export default function EditCoursePage() {
         
         // Debug: Log shortDescription value
         if (process.env.NODE_ENV === 'development') {
-          console.log('[Edit Course] shortDescription from API:', course.shortDescription);
-          console.log('[Edit Course] shortDescription processed:', shortDescriptionValue);
         }
         
         setFormData({

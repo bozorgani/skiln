@@ -39,8 +39,6 @@ export default function CoursesPage() {
       const response = await coursesAPI.getAll({ limit: 100, includeUnpublished: 'true' });
       
       // Debug: Log full response structure
-      console.log('API Response:', response);
-      console.log('Response Data:', response.data);
       
       // Try different possible response structures
       // Backend returns: { success, message, data: { courses: [...] } }
@@ -74,11 +72,8 @@ export default function CoursesPage() {
         }
       }
       
-      console.log('Extracted courses:', coursesData);
-      console.log('Courses count:', coursesData.length);
       
       if (coursesData.length === 0) {
-        console.warn('No courses found in response');
       }
       
       setCourses(coursesData);

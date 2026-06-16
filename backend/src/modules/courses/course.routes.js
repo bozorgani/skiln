@@ -70,12 +70,14 @@ router.get(
 // Get lesson by ID (virtual ID format: courseId-sectionIndex-lessonIndex)
 router.get(
   '/lessons/:lessonId',
+  auth({ required: false }),
   courseController.getLessonById
 );
 
 // Get lesson by section and lesson index (legacy format)
 router.get(
   '/:courseId/lessons/:sectionIndex/:lessonIndex',
+  auth({ required: false }),
   courseController.getLessonById
 );
 

@@ -65,7 +65,6 @@ function LoginPageContent() {
         
         if (response.data.data?.code) {
           setDevCode(response.data.data.code);
-          console.log(`[DEV] Verification code for ${phoneNumber}: ${response.data.data.code}`);
         }
       } else {
         setError(response.data.message || 'خطا در ارسال کد تایید');
@@ -106,7 +105,6 @@ function LoginPageContent() {
       const token = response.data.data.token;
       const userData = response.data.data.user;
 
-      console.log('[Login] Verify-code successful!');
 
       const tokenManager = await import('@/lib/token-manager');
       tokenManager.setToken(token);
@@ -195,7 +193,6 @@ function LoginPageContent() {
         
         if (response.data.data?.code) {
           setDevCode(response.data.data.code);
-          console.log(`[DEV] New verification code for ${phoneNumber}: ${response.data.data.code}`);
         }
       } else {
         setError(response.data.message || 'خطا در ارسال مجدد کد');

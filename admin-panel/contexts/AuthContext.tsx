@@ -32,11 +32,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Get token using centralized token manager
       const token = getToken();
       
-      console.log('[checkAuth] Starting auth check...');
-      console.log('[checkAuth] Token:', token ? 'exists (' + token.substring(0, 20) + '...)' : 'not found');
       
       if (!token) {
-        console.log('[checkAuth] No token found, setting user to null');
         setUser(null);
         // Clear localStorage as well
         if (typeof window !== 'undefined') {
@@ -46,7 +43,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      console.log('[checkAuth] Token found, calling getMe API...');
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Auth check timeout')), 10000) // Increased timeout
       );
@@ -56,28 +52,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         timeoutPromise
       ]) as any;
       
-      console.log('[checkAuth] getMe response status:', response?.status);
-      console.log('[checkAuth] getMe response data:', response?.data);
       
       const userData = response.data?.data?.user || response.data?.user;
       
       if (!userData) {
-        console.log('[checkAuth] No user data found in response');
         setUser(null);
         setLoading(false);
         return;
       }
       
-      console.log('[checkAuth] User data received:', {
-        id: userData.id,
-        email: userData.email,
-        phoneNumber: userData.phoneNumber,
-        role: userData.role
-      });
-      
       // Check if user is admin
       if (userData.role !== 'admin') {
-        console.log('[checkAuth] User is not admin, role =', userData.role);
         setUser(null);
         if (typeof window !== 'undefined') {
           const currentPath = window.location.pathname;
@@ -89,13 +74,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       
-      console.log('[checkAuth] ✅ User authenticated as admin:', userData.email || userData.phoneNumber);
       setUser(userData);
       
       // Also save to localStorage
       if (typeof window !== 'undefined') {
         localStorage.setItem('user', JSON.stringify(userData));
-        console.log('[checkAuth] User saved to localStorage');
       }
       
       setLoading(false);
@@ -108,7 +91,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // 401 is expected when user is not logged in - don't show error
       if (error.response?.status === 401 || error.message === 'Auth check timeout') {
-        console.log('[checkAuth] 401 or timeout, setting user to null');
         setUser(null);
         // Only redirect if not on login page
         if (typeof window !== 'undefined') {
@@ -136,7 +118,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (savedUser) {
           try {
             const userData = JSON.parse(savedUser);
-            console.log('[AuthContext] Found user in localStorage:', userData);
             // Verify token still exists
             const token = getToken();
             if (token) {
@@ -145,12 +126,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               // Still call checkAuth to verify in background
               checkAuth().catch(() => {
                 // If checkAuth fails, keep the user from localStorage
-                console.log('[AuthContext] checkAuth failed, keeping user from localStorage');
               });
               return;
             } else {
               // Token not found, clear localStorage
-              console.log('[AuthContext] Token not found, clearing localStorage');
               localStorage.removeItem('user');
             }
           } catch (e) {
@@ -170,7 +149,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Expose setUser function for direct updates
   const updateUser = (newUser: User | null) => {
-    console.log('[updateUser] Called with:', newUser);
     setUser(newUser);
     setLoading(false);
     
@@ -178,10 +156,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (typeof window !== 'undefined') {
       if (newUser) {
         localStorage.setItem('user', JSON.stringify(newUser));
-        console.log('[updateUser] User saved to localStorage');
       } else {
         localStorage.removeItem('user');
-        console.log('[updateUser] User removed from localStorage');
       }
     }
   };

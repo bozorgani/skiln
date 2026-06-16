@@ -1,18 +1,19 @@
-const fs = require('fs/promises');
+const fs = require('fs');
+const fsPromises = require('fs/promises');
 const path = require('path');
-const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  HeadObjectCommand,
+  GetObjectCommand,
+} = require('@aws-sdk/client-s3');
 
 const UPLOAD_ROOT = path.join(__dirname, '..', '..', 'uploads');
 
 const storageDriver = () => (process.env.STORAGE_DRIVER || 'local').toLowerCase();
 
 let s3Client = null;
-
-const getPublicBaseUrl = () => {
-  if (process.env.STORAGE_PUBLIC_URL) return process.env.STORAGE_PUBLIC_URL.replace(/\/$/, '');
-  if (process.env.BACKEND_PUBLIC_URL) return process.env.BACKEND_PUBLIC_URL.replace(/\/$/, '');
-  return '';
-};
 
 const getS3Client = () => {
   if (s3Client) return s3Client;
@@ -32,27 +33,16 @@ const getS3Client = () => {
   return s3Client;
 };
 
-const buildLocalUrl = (key) => `/uploads/${key}`.replace(/\/+/g, '/');
-
-const buildS3Url = (key) => {
-  const baseUrl = getPublicBaseUrl();
-  if (baseUrl) return `${baseUrl}/${key}`;
-
-  const bucket = process.env.S3_BUCKET;
-  const endpoint = process.env.S3_ENDPOINT?.replace(/\/$/, '');
-  if (endpoint && bucket) return `${endpoint}/${bucket}/${key}`;
-
-  return key;
-};
+const buildProxyUrl = (key) => `/uploads/${key}`.replace(/\/+/g, '/');
 
 const uploadLocal = async ({ key, buffer }) => {
   const fullPath = path.join(UPLOAD_ROOT, key);
-  await fs.mkdir(path.dirname(fullPath), { recursive: true });
-  await fs.writeFile(fullPath, buffer);
+  await fsPromises.mkdir(path.dirname(fullPath), { recursive: true });
+  await fsPromises.writeFile(fullPath, buffer);
   return {
     driver: 'local',
     key,
-    url: buildLocalUrl(key),
+    url: buildProxyUrl(key),
     path: fullPath,
   };
 };
@@ -67,13 +57,13 @@ const uploadS3 = async ({ key, buffer, contentType }) => {
     Body: buffer,
     ContentType: contentType,
     ACL: process.env.S3_ACL || undefined,
-    CacheControl: process.env.S3_CACHE_CONTROL || 'public, max-age=31536000, immutable',
+    CacheControl: process.env.S3_CACHE_CONTROL || 'private, max-age=0, no-cache',
   }));
 
   return {
     driver: 's3',
     key,
-    url: buildS3Url(key),
+    url: buildProxyUrl(key),
   };
 };
 
@@ -97,11 +87,59 @@ const deleteObject = async (key) => {
     return;
   }
 
-  await fs.rm(path.join(UPLOAD_ROOT, key), { force: true });
+  await fsPromises.rm(path.join(UPLOAD_ROOT, key), { force: true });
+};
+
+const getObjectHead = async (key) => {
+  if (storageDriver() === 's3') {
+    const bucket = process.env.S3_BUCKET;
+    const response = await getS3Client().send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+    return {
+      contentLength: Number(response.ContentLength || 0),
+      contentType: response.ContentType,
+      etag: response.ETag,
+      lastModified: response.LastModified,
+    };
+  }
+
+  const fullPath = path.join(UPLOAD_ROOT, key);
+  const stat = await fsPromises.stat(fullPath);
+  return {
+    contentLength: stat.size,
+    lastModified: stat.mtime,
+    path: fullPath,
+  };
+};
+
+const getObjectStream = async (key, rangeHeader) => {
+  if (storageDriver() === 's3') {
+    const bucket = process.env.S3_BUCKET;
+    const response = await getS3Client().send(new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Range: rangeHeader || undefined,
+    }));
+    return response.Body;
+  }
+
+  const fullPath = path.join(UPLOAD_ROOT, key);
+  if (rangeHeader) {
+    const match = /^bytes=(\d+)-(\d+)?$/.exec(rangeHeader);
+    if (match) {
+      return fs.createReadStream(fullPath, {
+        start: Number.parseInt(match[1], 10),
+        end: match[2] ? Number.parseInt(match[2], 10) : undefined,
+      });
+    }
+  }
+
+  return fs.createReadStream(fullPath);
 };
 
 module.exports = {
   uploadObject,
   deleteObject,
+  getObjectHead,
+  getObjectStream,
   storageDriver,
 };
