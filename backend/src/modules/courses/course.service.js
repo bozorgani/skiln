@@ -29,53 +29,104 @@ const updateCourse = async (id, payload) => {
   return course;
 };
 
-const listCourses = async (filters = {}) => {
-  const query = {};
-  
-  // بررسی includeUnpublished برای admin-panel
-  const includeUnpublished = filters.includeUnpublished === 'true' || filters.includeUnpublished === true;
-  
-  // اگر status در filters مشخص شده باشد، از آن استفاده کن
-  if (filters.status) {
-    query.status = filters.status;
-  } else {
-    // اگر includeUnpublished=true باشد (admin-panel)، همه دوره‌ها را نشان بده
-    if (includeUnpublished) {
-      // همه دوره‌ها را نشان بده (draft + published)
-      // هیچ فیلتر status اضافه نکن
-    } else {
-      // برای سایت اصلی: فقط دوره‌های published را نشان بده
-      // باید status دقیقاً 'published' باشد (نه null، نه undefined، نه draft)
-      query.status = 'published';
-      
-      // اگر status null باشد یا وجود نداشته باشد، نشان داده نمی‌شود
-      // (چون default در schema 'draft' است، پس اگر null باشد نباید مشکلی باشد)
-    }
-  }
-  
-  // Debug log (فقط در development)
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[listCourses] Query:', JSON.stringify(query, null, 2));
-    console.log('[listCourses] Filters:', JSON.stringify(filters, null, 2));
-    console.log('[listCourses] includeUnpublished:', includeUnpublished);
-  }
-  
-  if (filters.teacher) query.teacher = filters.teacher;
-  if (filters.search) {
-    query.$text = { $search: filters.search };
+const toPositiveInt = (value, fallback, max = 100) => {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.min(parsed, max);
+};
+
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const buildSort = (sortValue, hasTextSearch = false) => {
+  if (hasTextSearch && !sortValue) {
+    return { score: { $meta: 'textScore' }, createdAt: -1 };
   }
 
-  return Course.find(query)
-    .populate('teacher', 'name email role')
-    .select(courseProjection)
-    .sort({ createdAt: -1 });
+  const allowed = new Set(['createdAt', 'updatedAt', 'price', 'title', 'duration', 'studentsEnrolled']);
+  const raw = typeof sortValue === 'string' && sortValue.trim() ? sortValue.trim() : '-createdAt';
+  const sort = {};
+
+  raw.split(',').forEach((part) => {
+    const field = part.trim();
+    if (!field) return;
+    const direction = field.startsWith('-') ? -1 : 1;
+    const name = field.replace(/^-/, '');
+    if (allowed.has(name)) {
+      sort[name === 'studentsEnrolled' ? 'students' : name] = direction;
+    }
+  });
+
+  return Object.keys(sort).length ? sort : { createdAt: -1 };
+};
+
+const listCourses = async (filters = {}) => {
+  const query = {};
+  const includeUnpublished =
+    (filters.includeUnpublished === 'true' || filters.includeUnpublished === true) &&
+    filters.canViewUnpublished === true;
+
+  if (filters.status && ['draft', 'published'].includes(filters.status)) {
+    query.status = filters.status === 'published' || includeUnpublished ? filters.status : 'published';
+  } else if (filters.isPublished === 'true' || filters.isPublished === true) {
+    query.status = 'published';
+  } else if (!includeUnpublished) {
+    query.status = 'published';
+  }
+
+  if (filters.teacher) query.teacher = filters.teacher;
+  if (filters.category) query.category = new RegExp(`^${escapeRegex(String(filters.category).trim())}$`, 'i');
+  if (filters.level && ['Beginner', 'Intermediate', 'Advanced'].includes(filters.level)) {
+    query.level = filters.level;
+  }
+
+  const hasTextSearch = typeof filters.search === 'string' && filters.search.trim().length > 0;
+  if (hasTextSearch) {
+    query.$text = { $search: filters.search.trim() };
+  }
+
+  const page = toPositiveInt(filters.page, 1, 100000);
+  const limit = toPositiveInt(filters.limit, 12, 100);
+  const skip = (page - 1) * limit;
+  const sort = buildSort(filters.sort, hasTextSearch);
+
+  const [courses, total] = await Promise.all([
+    Course.find(query, hasTextSearch ? { score: { $meta: 'textScore' } } : undefined)
+      .populate('teacher', 'name email role')
+      .select(courseProjection)
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Course.countDocuments(query),
+  ]);
+
+  const normalizedCourses = courses.map((course) => ({
+    ...course,
+    studentsEnrolled: Array.isArray(course.students) ? course.students.length : 0,
+  }));
+
+  const totalPages = Math.max(Math.ceil(total / limit), 1);
+
+  return {
+    courses: normalizedCourses,
+    pagination: {
+      total,
+      totalPages,
+      currentPage: page,
+      limit,
+      hasPrevPage: page > 1,
+      hasNextPage: page < totalPages,
+    },
+  };
 };
 
 const getCourseById = async (id, filters = {}) => {
   const query = { _id: id };
   
   // بررسی includeUnpublished برای admin-panel
-  const includeUnpublished = filters.includeUnpublished === 'true' || filters.includeUnpublished === true;
+  const includeUnpublished =
+    (filters.includeUnpublished === 'true' || filters.includeUnpublished === true) &&
+    filters.canViewUnpublished === true;
   
   // اگر includeUnpublished نباشد (یعنی از سایت اصلی)، فقط دوره‌های published را نشان بده
   // اما اگر user درخواست داده و admin یا teacher است، می‌تواند draft را هم ببیند

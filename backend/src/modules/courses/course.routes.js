@@ -1,32 +1,37 @@
 const express = require('express');
 const auth = require('../../middlewares/auth');
 const validate = require('../../middlewares/validate');
+const schemaValidate = require('../../middlewares/schemaValidate');
+const { courseSchemas } = require('../../validations/schemas');
 const courseController = require('./course.controller');
 
 const router = express.Router();
 
 router
   .route('/')
-  .get(courseController.listCourses)
+  .get(auth({ required: false }), courseController.listCourses)
   .post(
     auth(['admin', 'teacher']),
-    validate(['title', 'description', 'price', 'thumbnail']),
+    schemaValidate(courseSchemas.create),
+    validate(['title', 'description', 'price']),
     courseController.createCourse
   );
 
 router
   .route('/:id')
-  .get(courseController.getCourse)
+  .get(auth({ required: false }), courseController.getCourse)
   .patch(
     auth(['admin', 'teacher']),
-    validate(['title', 'description', 'price', 'thumbnail', 'sections'], {
+    schemaValidate(courseSchemas.update),
+    validate(['title', 'description', 'price', 'sections'], {
       allowPartial: true,
     }),
     courseController.updateCourse
   )
   .put(
     auth(['admin', 'teacher']),
-    validate(['title', 'description', 'price', 'thumbnail', 'sections'], {
+    schemaValidate(courseSchemas.update),
+    validate(['title', 'description', 'price', 'sections'], {
       allowPartial: true,
     }),
     courseController.updateCourse
@@ -36,6 +41,7 @@ router
 router.patch(
   '/:id/status',
   auth(['admin', 'teacher']),
+  schemaValidate(courseSchemas.status),
   validate(['status']),
   courseController.setCourseStatus
 );

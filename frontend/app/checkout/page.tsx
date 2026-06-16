@@ -228,7 +228,7 @@ export default function CheckoutPage() {
     }
   };
 
-  const handlePaymentSuccess = () => {
+  const handlePaymentSuccess = (result?: any) => {
     if (paymentData && items.length > 0) {
       const courseId = items[0].courseId;
       removeFromCart(courseId);
@@ -240,7 +240,20 @@ export default function CheckoutPage() {
     });
     router.refresh();
     setPaymentDialogOpen(false);
+
+    const successPaymentId =
+      result?.payment?.paymentId ||
+      result?.payment?._id ||
+      result?.paymentId ||
+      paymentData?.paymentId;
+
     setPaymentData(null);
+
+    if (successPaymentId) {
+      router.push(`/payment/success?paymentId=${successPaymentId}`);
+    } else {
+      router.push('/dashboard');
+    }
   };
 
   if (authLoading || loading) {
@@ -547,7 +560,7 @@ export default function CheckoutPage() {
           paymentId={paymentData.paymentId}
           orderId={paymentData.orderId}
           courseId={coursesToPurchase[0].courseId}
-          amount={coursesToPurchase[0].price}
+          amount={finalTotal}
           zarinpalUrl={paymentData.zarinpalUrl}
           payirUrl={paymentData.payirUrl}
           idpayUrl={paymentData.idpayUrl}

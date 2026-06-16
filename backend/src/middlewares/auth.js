@@ -10,7 +10,12 @@ const extractToken = (req) => {
 
   const fallbackHeader = req.headers['x-access-token'] || req.headers['x-token'];
   if (fallbackHeader) {
-    return fallbackHeader;
+    return Array.isArray(fallbackHeader) ? fallbackHeader[0] : fallbackHeader;
+  }
+
+  const tokenFromCookieParser = req.cookies?.token;
+  if (tokenFromCookieParser) {
+    return tokenFromCookieParser;
   }
 
   const cookieHeader = req.headers.cookie;
@@ -21,25 +26,30 @@ const extractToken = (req) => {
       .find((cookie) => cookie.startsWith('token='));
 
     if (tokenCookie) {
-      return decodeURIComponent(tokenCookie.split('=')[1]);
+      return decodeURIComponent(tokenCookie.split('=').slice(1).join('='));
     }
   }
 
   return null;
 };
 
+const normalizeRoles = (roles) => {
+  if (!roles) return [];
+  if (Array.isArray(roles)) return roles.filter(Boolean);
+  if (typeof roles === 'string') return [roles];
+  return [];
+};
+
 const auth =
   (roles = []) =>
   async (req, _res, next) => {
     try {
-      // Check if auth is optional
-      const isOptional = roles && typeof roles === 'object' && roles.required === false;
-      const roleList = isOptional ? [] : (Array.isArray(roles) ? roles : [roles]);
-      
+      const isOptional = roles && typeof roles === 'object' && !Array.isArray(roles) && roles.required === false;
+      const roleList = isOptional ? [] : normalizeRoles(roles);
+
       const token = extractToken(req);
       if (!token) {
         if (isOptional) {
-          // If auth is optional and no token, set user to null and continue
           req.user = null;
           req.client = null;
           return next();
@@ -54,40 +64,33 @@ const auth =
         throw new ApiError(401, 'User not found for provided token');
       }
 
-      // بررسی client claim برای تفکیک توکن‌های admin-panel و frontend
-      const client = decoded.client || 'frontend'; // پیش‌فرض frontend برای backward compatibility
-      
-      // اگر route نیاز به admin دارد، بررسی کن که token از admin-panel آمده باشد
-      const requiresAdmin = roleList.includes('admin');
-      
-      if (requiresAdmin) {
-        // اگر می‌خواهد به admin route دسترسی داشته باشد، باید client: 'admin-panel' باشد
-        if (client !== 'admin-panel') {
-          throw new ApiError(
-            403,
-            'شما دسترسی به پنل مدیریت ندارید. لطفاً از پنل مدیریت استفاده کنید.',
-            [],
-            'INVALID_CLIENT_FOR_ADMIN'
-          );
-        }
-        
-        // همچنین بررسی کن که کاربر واقعاً admin است
-        if (user.role !== 'admin') {
-          throw new ApiError(403, 'You do not have permission to perform this action');
-        }
-      } else {
-        // برای route های عادی، بررسی کن که اگر client: 'admin-panel' است، خطا نده
-        // (admin-panel می‌تواند به route های عادی دسترسی داشته باشد)
-        // اما اگر route خاص frontend است، می‌توانیم محدودیت بگذاریم
+      if (user.isActive === false) {
+        throw new ApiError(403, 'User account is inactive');
       }
 
-      // بررسی role
+      const client = decoded.client || 'frontend';
+
       if (roleList.length && !roleList.includes(user.role)) {
         throw new ApiError(403, 'You do not have permission to perform this action');
       }
 
+      // Admin-only operations must be performed with an admin-panel token.
+      // Mixed routes such as ['admin', 'teacher'] remain usable by teachers while
+      // preventing admin frontend tokens from mutating privileged resources.
+      const isAdminOnlyRoute = roleList.length === 1 && roleList[0] === 'admin';
+      const userIsActingAsAdmin = user.role === 'admin' && roleList.includes('admin');
+      if ((isAdminOnlyRoute || userIsActingAsAdmin) && client !== 'admin-panel') {
+        throw new ApiError(
+          403,
+          'شما دسترسی به پنل مدیریت ندارید. لطفاً از پنل مدیریت استفاده کنید.',
+          [],
+          'INVALID_CLIENT_FOR_ADMIN'
+        );
+      }
+
       req.user = user;
-      req.client = client; // اضافه کردن client به request object برای استفاده در controllers
+      req.client = client;
+      req.tokenPayload = decoded;
       next();
     } catch (error) {
       next(
@@ -99,4 +102,3 @@ const auth =
   };
 
 module.exports = auth;
-

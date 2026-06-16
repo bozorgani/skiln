@@ -1,0 +1,375 @@
+openapi: 3.0.3
+info:
+  title: Skiln LMS API
+  version: 1.1.0
+  description: |
+    مستندات اولیه API برای فاز Production Readiness. این فایل endpointهای اصلی را پوشش می‌دهد و باید همراه با توسعه محصول کامل‌تر شود.
+servers:
+  - url: http://localhost:5000/api
+    description: Local development
+  - url: https://api.skiln.ir/api
+    description: Production example
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: token
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, teacher, student]
+    Course:
+      type: object
+      properties:
+        _id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        status:
+          type: string
+          enum: [draft, published]
+        category:
+          type: string
+        level:
+          type: string
+          enum: [Beginner, Intermediate, Advanced]
+    Blog:
+      type: object
+      properties:
+        _id:
+          type: string
+        title:
+          type: string
+        slug:
+          type: string
+        excerpt:
+          type: string
+        category:
+          type: string
+        isPublished:
+          type: boolean
+    Payment:
+      type: object
+      properties:
+        paymentId:
+          type: string
+        orderId:
+          type: string
+        amount:
+          type: number
+        provider:
+          type: string
+        status:
+          type: string
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: API is healthy
+  /auth/public/send-code:
+    post:
+      summary: Send OTP for public frontend login/register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phoneNumber]
+              properties:
+                phoneNumber:
+                  type: string
+                  example: '09123456789'
+      responses:
+        '200':
+          description: Verification code sent
+        '429':
+          description: Rate limit exceeded
+  /auth/public/verify-code:
+    post:
+      summary: Verify public OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phoneNumber, code]
+              properties:
+                phoneNumber:
+                  type: string
+                code:
+                  type: string
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Login/register successful
+  /auth/send-code:
+    post:
+      summary: Send admin-panel OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phoneNumber]
+              properties:
+                phoneNumber:
+                  type: string
+      responses:
+        '200':
+          description: Verification code sent
+        '403':
+          description: Phone is not allowed for admin panel
+  /auth/verify-code:
+    post:
+      summary: Verify admin-panel OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phoneNumber, code]
+              properties:
+                phoneNumber:
+                  type: string
+                code:
+                  type: string
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Admin login successful
+  /auth/me:
+    get:
+      summary: Current user profile
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Current user
+  /courses:
+    get:
+      summary: List courses
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: category
+          schema: { type: string }
+        - in: query
+          name: level
+          schema: { type: string, enum: [Beginner, Intermediate, Advanced] }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 12 }
+      responses:
+        '200':
+          description: Course list with pagination
+    post:
+      summary: Create course
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '201':
+          description: Course created
+  /courses/{id}:
+    get:
+      summary: Get course by id
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Course details
+    put:
+      summary: Update course
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Course updated
+  /blogs:
+    get:
+      summary: List blog posts
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: category
+          schema: { type: string }
+        - in: query
+          name: tag
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 12 }
+      responses:
+        '200':
+          description: Blog list with pagination
+    post:
+      summary: Create blog post
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '201':
+          description: Blog post created
+  /blogs/{idOrSlug}:
+    get:
+      summary: Get blog by id or slug
+      parameters:
+        - in: path
+          name: idOrSlug
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Blog details
+  /payments/create-intent:
+    post:
+      summary: Create payment intent for a course
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [courseId]
+              properties:
+                courseId:
+                  type: string
+                couponCode:
+                  type: string
+      responses:
+        '201':
+          description: Payment intent created
+  /payments/test-payment:
+    post:
+      summary: Complete mock/test payment
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                paymentId:
+                  type: string
+                orderId:
+                  type: string
+      responses:
+        '200':
+          description: Test payment completed
+  /uploads/images:
+    post:
+      summary: Upload image
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Image uploaded to local or S3-compatible storage
+  /uploads/videos:
+    post:
+      summary: Upload video
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [video]
+              properties:
+                video:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Video uploaded to local or S3-compatible storage
+  /payments/{id}:
+    get:
+      summary: Get payment details
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Payment details

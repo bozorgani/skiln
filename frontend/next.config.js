@@ -3,13 +3,10 @@ const nextConfig = {
   reactStrictMode: true,
   // Compression
   compress: true,
-  // Production optimizations
-  swcMinify: true,
   // Power optimization
   poweredByHeader: false,
   // Experimental features for better performance
   experimental: {
-    optimizeCss: true,
     optimizePackageImports: [
       'lucide-react',
       '@radix-ui/react-dialog',

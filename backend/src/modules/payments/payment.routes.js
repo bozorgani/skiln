@@ -1,6 +1,8 @@
 const express = require('express');
 const auth = require('../../middlewares/auth');
 const validate = require('../../middlewares/validate');
+const schemaValidate = require('../../middlewares/schemaValidate');
+const { paymentSchemas } = require('../../validations/schemas');
 const paymentController = require('./payment.controller');
 
 const router = express.Router();
@@ -9,19 +11,12 @@ router
   .route('/')
   .post(
     auth(),
-    validate(['order', 'amount', 'provider', 'transactionId']),
+    validate(['order', 'amount', 'provider']),
     paymentController.createPayment
   )
   .get(auth('admin'), paymentController.listPayments);
 
-router.get('/:id', auth('admin'), paymentController.getPaymentById);
-
-router.patch(
-  '/:id/status',
-  auth('admin'),
-  validate(['status']),
-  paymentController.updateStatus
-);
+router.get('/my-payments', auth(), paymentController.getMyPayments);
 
 router.get('/transactions', auth('admin'), paymentController.getTransactions);
 
@@ -32,29 +27,36 @@ router.post(
   paymentController.refundTransaction
 );
 
-// Create payment intent for course purchase
 router.post(
   '/create-intent',
   auth(),
+  schemaValidate(paymentSchemas.createIntent),
   validate(['courseId']),
   paymentController.createIntent
 );
 
-// Complete test payment - mark order as paid and enroll user (for test/mock payments)
 router.post(
   '/test-payment',
   auth(),
-  validate(['orderId']),
+  schemaValidate(paymentSchemas.testPayment),
   paymentController.completeTestPayment
 );
 
-// Admin purchase - enroll user in course for free (admin only)
 router.post(
   '/admin-purchase',
   auth('admin'),
+  schemaValidate(paymentSchemas.adminPurchase),
   validate(['courseId']),
   paymentController.adminPurchase
 );
 
-module.exports = router;
+router.get('/:id', auth(), paymentController.getPaymentById);
 
+router.patch(
+  '/:id/status',
+  auth('admin'),
+  validate(['status']),
+  paymentController.updateStatus
+);
+
+module.exports = router;

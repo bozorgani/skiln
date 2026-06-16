@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -22,7 +22,7 @@ const codeSchema = z.object({
   code: z.string().length(4, 'کد تایید باید ۴ رقم باشد'),
 });
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -479,5 +479,18 @@ export default function LoginPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
+        در حال بارگذاری...
+      </div>
+    }>
+      <LoginPageContent />
+    </Suspense>
   );
 }

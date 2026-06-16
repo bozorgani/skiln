@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +9,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { paymentsAPI } from '@/lib/api';
 
-export default function PaymentSuccessPage() {
+function PaymentSuccessPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const paymentId = searchParams.get('paymentId');
@@ -36,7 +36,8 @@ export default function PaymentSuccessPage() {
   const fetchPaymentDetails = async () => {
     try {
       const response = await paymentsAPI.getById(paymentId!);
-      setPayment(response.data.data.payment);
+      const paymentData = response.data?.data?.payment || response.data?.data;
+      setPayment(paymentData);
     } catch (error) {
       console.error('Error fetching payment details:', error);
     } finally {
@@ -201,5 +202,18 @@ export default function PaymentSuccessPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
+        در حال بارگذاری...
+      </div>
+    }>
+      <PaymentSuccessPageContent />
+    </Suspense>
   );
 }

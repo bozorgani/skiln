@@ -4,11 +4,16 @@ const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const path = require('path');
+const crypto = require('crypto');
 const ApiError = require('./core/ApiError');
 const rateLimiter = require('./middlewares/rateLimiter');
 const routes = require('./routes');
 
 const app = express();
+
+if (process.env.TRUST_PROXY === 'true') {
+  app.set('trust proxy', 1);
+}
 
 // Configure helmet with relaxed CORS settings for video streaming
 app.use(helmet({
@@ -18,7 +23,7 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       mediaSrc: ["'self'", "http://localhost:5000", "https:"], // Allow media from localhost and https
-      scriptSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://cdn.jsdelivr.net"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
     },
@@ -55,10 +60,20 @@ app.use(
   })
 );
 
+app.use((req, res, next) => {
+  req.id = req.headers['x-request-id'] || crypto.randomUUID();
+  res.setHeader('X-Request-Id', req.id);
+  next();
+});
+
+morgan.token('id', (req) => req.id);
 app.use(cookieParser());
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true }));
-app.use(morgan('dev'));
+app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: process.env.FORM_BODY_LIMIT || '1mb' }));
+app.use(morgan(process.env.NODE_ENV === 'production'
+  ? ':id :remote-addr :method :url :status :response-time ms'
+  : 'dev'
+));
 
 // Video streaming route (must be BEFORE static files to handle CORS properly)
 // این route باید قبل از همه static file handlers باشد
@@ -67,7 +82,6 @@ app.use('/uploads/videos', (req, res, next) => {
   // Override helmet's restrictive CORS headers for video routes
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
-  console.log('[App] Video route matched:', req.method, req.path, req.params);
   next();
 }, videoStreamRoutes);
 
@@ -78,7 +92,6 @@ app.use('/uploads/images', express.static(path.join(__dirname, '..', 'uploads', 
 app.use('/uploads', (req, res, next) => {
   // Skip if it's a video request (already handled above)
   if (req.path && req.path.startsWith('/videos/')) {
-    console.log('[App] Skipping static for video:', req.path);
     return next(); // Pass to next middleware (should be 404 handler)
   }
   next();
@@ -87,7 +100,7 @@ app.use('/uploads', (req, res, next) => {
 // Rate limiting برای تمام درخواست‌ها
 // می‌توانید این را غیرفعال کنید یا تنظیمات را تغییر دهید
 if (process.env.ENABLE_RATE_LIMIT !== 'false') {
-  app.use(rateLimiter({ windowMs: 15 * 60 * 1000, max: 100 }));
+  app.use(rateLimiter({ windowMs: 15 * 60 * 1000, max: 100, namespace: 'global' }));
 }
 
 app.get('/', (_req, res) => {
@@ -103,10 +116,11 @@ app.use((req, _res, next) => {
   next(new ApiError(404, `Route ${req.method} ${req.originalUrl} not found`));
 });
 
-app.use((err, _req, res, _next) => {
-  const statusCode = err.statusCode || 500;
+app.use((err, req, res, _next) => {
+  const statusCode = err.statusCode || (err.name === 'MulterError' ? 400 : 500);
   res.status(statusCode).json({
     success: false,
+    requestId: req.id,
     code: err.code,
     message: err.message || 'Something went wrong',
     errors: err.errors || undefined,

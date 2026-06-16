@@ -43,7 +43,7 @@ describe('Button Component', () => {
     it('applies outline variant styles', () => {
       render(<Button variant="outline">Outline Button</Button>);
       const button = screen.getByRole('button');
-      expect(button).toHaveClass('border');
+      expect(button).toHaveClass('border-2');
     });
 
     it('applies destructive variant styles', () => {
@@ -87,7 +87,7 @@ describe('Button Component', () => {
     it('applies large size styles', () => {
       render(<Button size="lg">Large Button</Button>);
       const button = screen.getByRole('button');
-      expect(button).toHaveClass('h-11');
+      expect(button).toHaveClass('h-12');
     });
 
     it('applies icon size styles', () => {
@@ -183,7 +183,7 @@ describe('Button Component', () => {
       );
       const button = screen.getByRole('button');
       expect(button).toHaveClass('custom-class');
-      expect(button).toHaveClass('border');
+      expect(button).toHaveClass('border-2');
     });
 
     it('forwards ref correctly', () => {

@@ -35,7 +35,7 @@ export default function FinancePage() {
       const transactions = transactionsRes.data?.data?.transactions || transactionsRes.data?.data?.data?.transactions || [];
       const validTransactions = Array.isArray(transactions) ? transactions : [];
       const totalRevenue = validTransactions
-        .filter((t: any) => t.status === 'completed')
+        .filter((t: any) => t.status === 'completed' || t.status === 'succeeded' || t.status === 'paid')
         .reduce((sum: number, t: any) => sum + (t.amount || 0), 0);
       setStats({ totalRevenue, totalTransactions: validTransactions.length });
     } catch (error: any) {

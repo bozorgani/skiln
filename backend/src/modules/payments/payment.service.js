@@ -1,8 +1,78 @@
+const mongoose = require('mongoose');
 const ApiError = require('../../core/ApiError');
 const Order = require('../orders/order.model');
 const Payment = require('./payment.model');
 const Course = require('../courses/course.model');
 const couponService = require('../coupons/coupon.service');
+
+const isValidObjectId = (value) => mongoose.Types.ObjectId.isValid(value);
+
+const populatePaymentQuery = (query) =>
+  query.populate({
+    path: 'order',
+    populate: [
+      { path: 'user', select: 'name email phone role' },
+      { path: 'course', select: 'title description shortDescription thumbnail price category level duration' },
+    ],
+  });
+
+const formatPayment = (payment) => {
+  if (!payment) return null;
+  const obj = typeof payment.toObject === 'function' ? payment.toObject() : payment;
+  const order = obj.order || null;
+  const course = order?.course || null;
+  const user = order?.user || null;
+
+  return {
+    _id: obj._id,
+    paymentId: obj._id,
+    orderId: order?._id || obj.order,
+    order,
+    course,
+    user,
+    amount: obj.amount,
+    currency: 'IRR',
+    provider: obj.provider,
+    paymentMethod: obj.paymentMethod || obj.provider,
+    status: obj.status,
+    transactionId: obj.transactionId,
+    isAdminPurchase: obj.isAdminPurchase,
+    metadata: obj.metadata,
+    paidAt: obj.status === 'succeeded'
+      ? obj.metadata?.completedAt || obj.metadata?.purchasedAt || obj.updatedAt
+      : null,
+    createdAt: obj.createdAt,
+    updatedAt: obj.updatedAt,
+  };
+};
+
+const assertCanAccessPayment = (payment, user) => {
+  if (!payment || !user) return;
+  if (user.role === 'admin') return;
+  const orderUserId = payment.order?.user?._id || payment.order?.user;
+  if (!orderUserId || orderUserId.toString() !== user._id.toString()) {
+    throw new ApiError(403, 'You cannot access this payment');
+  }
+};
+
+const enrollUserInCourse = async (order) => {
+  if (!order?.course || !order?.user) return;
+
+  const courseId = order.course._id || order.course;
+  const userId = order.user._id || order.user;
+  const course = await Course.findById(courseId);
+  if (!course) return;
+
+  const userIdStr = userId.toString();
+  const isAlreadyEnrolled = course.students.some(
+    (studentId) => studentId.toString() === userIdStr
+  );
+
+  if (!isAlreadyEnrolled) {
+    course.students.push(userId);
+    await course.save();
+  }
+};
 
 const createPayment = async ({
   order,
@@ -35,85 +105,81 @@ const createPayment = async ({
 };
 
 const updatePaymentStatus = async (id, status) => {
-  if (!['initiated', 'succeeded', 'failed'].includes(status)) {
+  if (!['initiated', 'pending', 'succeeded', 'failed', 'cancelled'].includes(status)) {
     throw new ApiError(400, 'Invalid payment status');
   }
 
-  const payment = await Payment.findByIdAndUpdate(
-    id,
-    { status },
-    { new: true }
-  ).populate('order');
+  const payment = await populatePaymentQuery(
+    Payment.findByIdAndUpdate(id, { status }, { new: true })
+  );
 
   if (!payment) {
     throw new ApiError(404, 'Payment not found');
   }
 
   const order = await Order.findById(payment.order._id);
-  if (status === 'succeeded') {
-    // Update order status if status field exists
-    if (order.schema.paths.status) {
+  if (order) {
+    if (status === 'succeeded') {
       order.status = 'paid';
+      await order.save();
+      await enrollUserInCourse(order);
+    } else if (status === 'failed' || status === 'cancelled') {
+      order.status = status === 'cancelled' ? 'cancelled' : 'failed';
+      await order.save();
     }
-    await order.save();
-    
-    // Enroll user in course - ensure user is added to students array
-    const course = await Course.findById(order.course);
-    if (course) {
-      const userId = order.user.toString();
-      const isAlreadyEnrolled = course.students.some(
-        (studentId) => studentId.toString() === userId
-      );
-      
-      if (!isAlreadyEnrolled) {
-        course.students.push(order.user);
-        await course.save();
-        console.log(`[Payment] User ${userId} enrolled in course ${course._id} after successful payment`);
-      }
-    }
-  } else if (status === 'failed') {
-    // Update order status if status field exists
-    if (order.schema.paths.status) {
-      order.status = 'failed';
-    }
-    await order.save();
   }
 
   return payment;
 };
 
 const listPayments = async () => {
-  return Payment.find()
-    .populate({
-      path: 'order',
-      populate: { path: 'user course', select: 'name email title price' },
-    })
-    .sort({ createdAt: -1 });
+  return populatePaymentQuery(Payment.find()).sort({ createdAt: -1 });
 };
 
-const getPaymentById = async (id) => {
-  const payment = await Payment.findById(id)
-    .populate({
-      path: 'order',
-      populate: { path: 'user course', select: 'name email title price' },
-    });
+const getPaymentById = async (id, user = null) => {
+  if (!isValidObjectId(id)) {
+    throw new ApiError(400, 'Invalid payment ID');
+  }
+
+  let payment = await populatePaymentQuery(Payment.findById(id));
+
+  // Backward compatibility: some older frontend code used orderId as paymentId.
+  if (!payment) {
+    payment = await populatePaymentQuery(Payment.findOne({ order: id }).sort({ createdAt: -1 }));
+  }
+
   if (!payment) {
     throw new ApiError(404, 'Payment not found');
   }
+
+  assertCanAccessPayment(payment, user);
   return payment;
+};
+
+const getPaymentDetails = async (id, user = null) => {
+  const payment = await getPaymentById(id, user);
+  return formatPayment(payment);
+};
+
+const getMyPayments = async (userId) => {
+  const payments = await populatePaymentQuery(
+    Payment.find().sort({ createdAt: -1 })
+  );
+
+  return payments
+    .filter((payment) => {
+      const orderUserId = payment.order?.user?._id || payment.order?.user;
+      return orderUserId?.toString() === userId.toString();
+    })
+    .map(formatPayment);
 };
 
 const getTransactions = async (filters = {}) => {
   const query = {};
   if (filters.status) query.status = filters.status;
   if (filters.provider) query.provider = filters.provider;
-  
-  return Payment.find(query)
-    .populate({
-      path: 'order',
-      populate: { path: 'user course', select: 'name email title price' },
-    })
-    .sort({ createdAt: -1 });
+
+  return populatePaymentQuery(Payment.find(query)).sort({ createdAt: -1 });
 };
 
 const refundTransaction = async (transactionId) => {
@@ -121,45 +187,37 @@ const refundTransaction = async (transactionId) => {
   if (!payment) {
     throw new ApiError(404, 'Transaction not found');
   }
-  
+
   if (payment.status !== 'succeeded') {
     throw new ApiError(400, 'Only succeeded transactions can be refunded');
   }
-  
-  // Update payment status to failed (refunded)
+
   payment.status = 'failed';
+  payment.metadata = {
+    ...(payment.metadata || {}),
+    refundedAt: new Date(),
+  };
   await payment.save();
-  
-  // Update order status
+
   const order = await Order.findById(payment.order);
   if (order) {
     order.status = 'refunded';
     await order.save();
-    
-    // Remove user from course
+
     await Course.findByIdAndUpdate(order.course, {
       $pull: { students: order.user },
     });
   }
-  
+
   return payment;
 };
 
-/**
- * Create payment intent for a course purchase
- * @param {string} courseId - Course ID
- * @param {string} userId - User ID
- * @param {string} couponCode - Optional coupon code
- * @returns {Object} Payment intent data
- */
 const createPaymentIntent = async (courseId, userId, couponCode = null) => {
-  // Check if course exists
   const course = await Course.findById(courseId);
   if (!course) {
     throw new ApiError(404, 'دوره یافت نشد');
   }
 
-  // Check if user is already enrolled
   const alreadyEnrolled = course.students.some(
     (studentId) => studentId.toString() === userId.toString()
   );
@@ -168,17 +226,15 @@ const createPaymentIntent = async (courseId, userId, couponCode = null) => {
     throw new ApiError(400, 'شما قبلاً در این دوره ثبت‌نام کرده‌اید');
   }
 
-  // Calculate final price (apply coupon if provided)
   let finalPrice = course.price || 0;
   let couponApplied = null;
 
   if (couponCode) {
     try {
-      // Validate and apply coupon
       const couponResult = await couponService.validateCoupon({
         code: couponCode,
-        userId: userId,
-        courseId: courseId,
+        userId,
+        courseId,
         amount: course.price || 0,
       });
 
@@ -189,95 +245,108 @@ const createPaymentIntent = async (courseId, userId, couponCode = null) => {
         finalAmount: couponResult.finalAmount,
       };
     } catch (error) {
-      // If coupon validation fails, throw error (don't proceed with invalid coupon)
       throw new ApiError(error.statusCode || 400, error.message || 'کد تخفیف نامعتبر است');
     }
   }
 
-  // If course is free, enroll user directly
-  if (finalPrice === 0) {
-    // Enroll user in course - check if already enrolled
-    const userIdStr = userId.toString();
-    const isAlreadyEnrolled = course.students.some(
-      (studentId) => studentId.toString() === userIdStr
-    );
-    
-    if (!isAlreadyEnrolled) {
-      course.students.push(userId);
-      await course.save();
-      console.log(`[Free Course] User ${userIdStr} enrolled in course ${course._id}`);
-    }
-
-    // Create order with status 'paid' for free courses
-    const order = await Order.create({
-      user: userId,
-      course: courseId,
-      amount: 0,
-      status: 'paid',
-    });
-
-    return {
-      paymentRequired: false,
-      paymentId: null,
-      orderId: order._id,
-      amount: 0,
-      message: 'ثبت‌نام با موفقیت انجام شد',
-    };
-  }
-
-  // For paid courses, create an order and return payment intent data
   const order = await Order.create({
     user: userId,
     course: courseId,
     amount: finalPrice,
-    status: 'pending',
+    status: finalPrice === 0 ? 'paid' : 'pending',
   });
 
-  // Check if payment providers are configured
+  if (finalPrice === 0) {
+    await enrollUserInCourse(order);
+
+    const payment = await Payment.create({
+      order: order._id,
+      amount: 0,
+      provider: 'free',
+      status: 'succeeded',
+      transactionId: `FREE-${order._id}-${Date.now()}`,
+      metadata: {
+        completedAt: new Date(),
+        couponApplied,
+      },
+    });
+
+    return {
+      paymentRequired: false,
+      paymentId: payment._id,
+      orderId: order._id,
+      amount: 0,
+      payment: formatPayment(await getPaymentById(payment._id)),
+      message: 'ثبت‌نام با موفقیت انجام شد',
+    };
+  }
+
   const hasStripe = process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PUBLISHABLE_KEY;
   const hasZarinpal = process.env.ZARINPAL_MERCHANT_ID;
   const hasPayir = process.env.PAYIR_API_KEY;
   const hasIdpay = process.env.IDPAY_API_KEY;
-
-  // Generate payment URLs or client secrets if providers are configured
-  let clientSecret = null;
-  let zarinpalUrl = null;
-  let payirUrl = null;
-  let idpayUrl = null;
-
-  // TODO: Integrate with payment providers (Stripe, Zarinpal, etc.)
-  // For now, if no providers are configured, enable mock/test payment mode
-  // In production, you would:
-  // 1. Create a Stripe PaymentIntent and get clientSecret
-  // 2. Or create a Zarinpal payment request and get payment URL
-  // 3. Store the provider and transaction ID
-
-  // If no real payment providers are configured, enable test/mock payment
   const enableTestPayment = !hasStripe && !hasZarinpal && !hasPayir && !hasIdpay;
+
+  const provider = enableTestPayment
+    ? 'test'
+    : hasStripe
+      ? 'stripe'
+      : hasZarinpal
+        ? 'zarinpal'
+        : hasPayir
+          ? 'payir'
+          : 'idpay';
+
+  const payment = await Payment.create({
+    order: order._id,
+    amount: finalPrice,
+    provider,
+    status: 'pending',
+    transactionId: `${provider.toUpperCase()}-PENDING-${order._id}-${Date.now()}`,
+    metadata: {
+      couponApplied,
+      createdFrom: 'createPaymentIntent',
+    },
+  });
+
+  const clientSecret = null;
+  const zarinpalUrl = null;
+  const payirUrl = null;
+  const idpayUrl = null;
 
   return {
     paymentRequired: true,
-    paymentId: order._id.toString(), // Use order ID as payment ID for mock/test payments
+    paymentId: payment._id,
     orderId: order._id,
     amount: finalPrice,
-    clientSecret: hasStripe ? clientSecret : null, // For Stripe - set when Stripe is integrated
-    zarinpalUrl: hasZarinpal ? zarinpalUrl : null, // For Zarinpal - set when Zarinpal is integrated
-    payirUrl: hasPayir ? payirUrl : null, // For Pay.ir - set when Pay.ir is integrated
-    idpayUrl: hasIdpay ? idpayUrl : null, // For IDPay - set when IDPay is integrated
-    testPaymentUrl: enableTestPayment ? `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/test?orderId=${order._id}&amount=${finalPrice}` : null, // Test payment URL
-    mockMode: enableTestPayment, // Indicates this is a mock/test implementation
+    clientSecret: hasStripe ? clientSecret : null,
+    zarinpalUrl: hasZarinpal ? zarinpalUrl : null,
+    payirUrl: hasPayir ? payirUrl : null,
+    idpayUrl: hasIdpay ? idpayUrl : null,
+    testPaymentUrl: enableTestPayment
+      ? `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/test?paymentId=${payment._id}&orderId=${order._id}&amount=${finalPrice}`
+      : null,
+    mockMode: enableTestPayment,
     couponApplied,
   };
 };
 
-/**
- * Complete test payment - mark order as paid and enroll user (for test/mock payments)
- * @param {string} orderId - Order ID
- * @param {string} userId - User ID
- * @returns {Object} Payment result
- */
-const completeTestPayment = async (orderId, userId) => {
-  const order = await Order.findById(orderId).populate('course');
+const completeTestPayment = async ({ orderId, paymentId }, userId) => {
+  let payment = null;
+
+  if (paymentId && isValidObjectId(paymentId)) {
+    payment = await Payment.findById(paymentId);
+  }
+
+  if (!payment && orderId && isValidObjectId(orderId)) {
+    payment = await Payment.findOne({ order: orderId }).sort({ createdAt: -1 });
+  }
+
+  if (!payment) {
+    throw new ApiError(404, 'پرداخت تست یافت نشد');
+  }
+
+  const order = await Order.findById(payment.order);
   if (!order) {
     throw new ApiError(404, 'سفارش یافت نشد');
   }
@@ -286,71 +355,41 @@ const completeTestPayment = async (orderId, userId) => {
     throw new ApiError(403, 'شما مجاز به پرداخت این سفارش نیستید');
   }
 
-  if (order.status === 'paid') {
-    return {
-      success: true,
-      message: 'این سفارش قبلاً پرداخت شده است',
-      order,
-    };
+  if (!['test', 'free'].includes(payment.provider)) {
+    throw new ApiError(400, 'این پرداخت از نوع تست نیست');
   }
 
-  // Update order status
   order.status = 'paid';
   await order.save();
+  await enrollUserInCourse(order);
 
-  // Enroll user in course - ensure user is added to students array
-  const course = await Course.findById(order.course);
-  if (course) {
-    const userIdStr = userId.toString();
-    const isAlreadyEnrolled = course.students.some(
-      (studentId) => studentId.toString() === userIdStr
-    );
-    
-    if (!isAlreadyEnrolled) {
-      course.students.push(userId);
-      await course.save();
-      console.log(`[Test Payment] User ${userIdStr} enrolled in course ${course._id}`);
-    } else {
-      console.log(`[Test Payment] User ${userIdStr} already enrolled in course ${course._id}`);
-    }
-  }
+  payment.status = 'succeeded';
+  payment.transactionId = payment.transactionId && !payment.transactionId.includes('PENDING')
+    ? payment.transactionId
+    : `TEST-${order._id}-${Date.now()}`;
+  payment.metadata = {
+    ...(payment.metadata || {}),
+    testPayment: true,
+    completedAt: new Date(),
+  };
+  await payment.save();
 
-  // Create payment record
-  const payment = await Payment.create({
-    order: order._id,
-    amount: order.amount,
-    provider: 'free',
-    status: 'succeeded',
-    transactionId: `TEST-${orderId}-${Date.now()}`,
-    metadata: {
-      testPayment: true,
-      completedAt: new Date(),
-    },
-  });
+  const populatedPayment = await getPaymentById(payment._id);
 
   return {
     success: true,
     message: 'پرداخت تست با موفقیت تکمیل شد',
-    payment,
+    payment: formatPayment(populatedPayment),
     order,
   };
 };
 
-/**
- * Admin purchase - enroll user in course for free (admin only)
- * @param {string} courseId - Course ID
- * @param {string} userId - User ID (the user to enroll)
- * @param {string} adminId - Admin ID (the admin making the purchase)
- * @returns {Object} Purchase result
- */
 const adminPurchase = async (courseId, userId, adminId) => {
-  // Check if course exists
   const course = await Course.findById(courseId);
   if (!course) {
     throw new ApiError(404, 'دوره یافت نشد');
   }
 
-  // Check if user is already enrolled
   const alreadyEnrolled = course.students.some(
     (studentId) => studentId.toString() === userId.toString()
   );
@@ -359,11 +398,9 @@ const adminPurchase = async (courseId, userId, adminId) => {
     throw new ApiError(400, 'کاربر قبلاً در این دوره ثبت‌نام کرده‌است');
   }
 
-  // Enroll user in course
   course.students.push(userId);
   await course.save();
 
-  // Create order with status 'paid' and amount 0
   const order = await Order.create({
     user: userId,
     course: courseId,
@@ -371,7 +408,6 @@ const adminPurchase = async (courseId, userId, adminId) => {
     status: 'paid',
   });
 
-  // Create payment record for admin purchase
   const payment = await Payment.create({
     order: order._id,
     amount: 0,
@@ -391,6 +427,7 @@ const adminPurchase = async (courseId, userId, adminId) => {
     success: true,
     orderId: order._id,
     paymentId: payment._id,
+    payment: formatPayment(await getPaymentById(payment._id)),
     message: 'کاربر با موفقیت در دوره ثبت‌نام شد (پرداخت مدیر)',
   };
 };
@@ -400,10 +437,12 @@ module.exports = {
   updatePaymentStatus,
   listPayments,
   getPaymentById,
+  getPaymentDetails,
+  getMyPayments,
   getTransactions,
   refundTransaction,
   createPaymentIntent,
   completeTestPayment,
   adminPurchase,
+  formatPayment,
 };
-

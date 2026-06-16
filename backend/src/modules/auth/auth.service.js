@@ -96,7 +96,7 @@ const signAccessToken = (user, client = 'frontend') => {
   );
 };
 
-const generateRefreshToken = async (user) => {
+const generateRefreshToken = async (user, client = 'frontend') => {
   const tokenId = crypto.randomUUID();
   const rawSecret = crypto.randomBytes(40).toString('hex');
   const value = `${tokenId}.${rawSecret}`;
@@ -109,6 +109,7 @@ const generateRefreshToken = async (user) => {
     tokenId,
     token: hashed,
     expiresAt,
+    client,
   });
 
   return value;
@@ -121,7 +122,7 @@ const generateRefreshToken = async (user) => {
  */
 const issueTokens = async (user, client = 'frontend') => {
   const accessToken = signAccessToken(user, client);
-  const refreshToken = await generateRefreshToken(user);
+  const refreshToken = await generateRefreshToken(user, client);
   return { accessToken, refreshToken };
 };
 
@@ -396,10 +397,8 @@ const refreshTokens = async (refreshToken) => {
 
   await stored.deleteOne(); // rotate refresh token
   
-  // برای refresh tokens، به طور پیش‌فرض client را از access token قبلی می‌گیریم
-  // اما چون refresh token جدا است، به طور پیش‌فرض frontend می‌گذاریم
-  // اگر نیاز به admin-panel باشد، باید client را به عنوان پارامتر بپذیریم
-  const tokens = await issueTokens(user, 'frontend');
+  const client = stored.client || 'frontend';
+  const tokens = await issueTokens(user, client);
 
   return { user, ...tokens };
 };

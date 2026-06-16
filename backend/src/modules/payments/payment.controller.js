@@ -1,3 +1,4 @@
+const ApiError = require('../../core/ApiError');
 const catchAsync = require('../../core/catchAsync');
 const sendResponse = require('../../core/sendResponse');
 const paymentService = require('./payment.service');
@@ -10,7 +11,7 @@ exports.createPayment = catchAsync(async (req, res) => {
   sendResponse(res, {
     statusCode: 201,
     message: 'Payment initiated',
-    data: payment,
+    data: { payment: paymentService.formatPayment(payment) || payment },
   });
 });
 
@@ -19,27 +20,39 @@ exports.updateStatus = catchAsync(async (req, res) => {
     req.params.id,
     req.body.status
   );
-  sendResponse(res, { message: 'Payment status updated', data: payment });
+  sendResponse(res, {
+    message: 'Payment status updated',
+    data: { payment: paymentService.formatPayment(payment) },
+  });
 });
 
 exports.listPayments = catchAsync(async (_req, res) => {
   const payments = await paymentService.listPayments();
-  sendResponse(res, { data: payments, message: 'Payments retrieved' });
+  sendResponse(res, {
+    data: { payments: payments.map(paymentService.formatPayment), transactions: payments.map(paymentService.formatPayment) },
+    message: 'Payments retrieved',
+  });
 });
 
 exports.getPaymentById = catchAsync(async (req, res) => {
-  const payment = await paymentService.getPaymentById(req.params.id);
-  sendResponse(res, { data: payment, message: 'Payment retrieved' });
+  const payment = await paymentService.getPaymentDetails(req.params.id, req.user);
+  sendResponse(res, { data: { payment }, message: 'Payment retrieved' });
+});
+
+exports.getMyPayments = catchAsync(async (req, res) => {
+  const payments = await paymentService.getMyPayments(req.user._id);
+  sendResponse(res, { data: { payments }, message: 'User payments retrieved' });
 });
 
 exports.getTransactions = catchAsync(async (req, res) => {
   const transactions = await paymentService.getTransactions(req.query);
-  sendResponse(res, { data: transactions, message: 'Transactions retrieved' });
+  const formatted = transactions.map(paymentService.formatPayment);
+  sendResponse(res, { data: { transactions: formatted, payments: formatted }, message: 'Transactions retrieved' });
 });
 
 exports.refundTransaction = catchAsync(async (req, res) => {
   const payment = await paymentService.refundTransaction(req.body.transactionId);
-  sendResponse(res, { data: payment, message: 'Transaction refunded successfully' });
+  sendResponse(res, { data: { payment }, message: 'Transaction refunded successfully' });
 });
 
 exports.createIntent = catchAsync(async (req, res) => {
@@ -59,14 +72,15 @@ exports.createIntent = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * Complete test payment - mark order as paid and enroll user (for test/mock payments)
- */
 exports.completeTestPayment = catchAsync(async (req, res) => {
-  const { orderId } = req.body;
+  const { orderId, paymentId } = req.body;
   const userId = req.user._id;
 
-  const result = await paymentService.completeTestPayment(orderId, userId);
+  if (!orderId && !paymentId) {
+    throw new ApiError(400, 'orderId or paymentId is required');
+  }
+
+  const result = await paymentService.completeTestPayment({ orderId, paymentId }, userId);
 
   sendResponse(res, {
     statusCode: 200,
@@ -75,19 +89,14 @@ exports.completeTestPayment = catchAsync(async (req, res) => {
   });
 });
 
-/**
- * Admin purchase - enroll a user in a course for free (admin only)
- */
 exports.adminPurchase = catchAsync(async (req, res) => {
   const { courseId, userId } = req.body;
   const adminId = req.user._id;
 
-  // Check if user is admin
   if (req.user.role !== 'admin') {
-    throw new Error('Only admins can perform admin purchases');
+    throw new ApiError(403, 'Only admins can perform admin purchases');
   }
 
-  // Use provided userId or default to admin's own id
   const targetUserId = userId || adminId;
 
   const result = await paymentService.adminPurchase(
@@ -102,4 +111,3 @@ exports.adminPurchase = catchAsync(async (req, res) => {
     data: result,
   });
 });
-

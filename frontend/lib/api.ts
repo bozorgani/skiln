@@ -98,6 +98,8 @@ export const paymentsAPI = {
     api.post('/payments/verify', { paymentId, paymentIntentId }),
   getById: (paymentId: string) => api.get(`/payments/${paymentId}`),
   getMyPayments: () => api.get('/payments/my-payments'),
+  completeTestPayment: (payload: { orderId?: string; paymentId?: string; courseId?: string; amount?: number }) =>
+    api.post('/payments/test-payment', payload),
   adminPurchase: (courseId: string, userId?: string) =>
     api.post('/payments/admin-purchase', { courseId, userId }),
 };

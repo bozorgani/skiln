@@ -7,13 +7,15 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "lint": "echo \"No lint configured\"",
-    "fix-course-index": "node scripts/fix-course-index.js"
+    "fix-course-index": "node scripts/fix-course-index.js",
+    "smoke:ci": "node scripts/ci-smoke-test.js"
   },
   "keywords": [],
   "author": "LMS Team",
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1069.0",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -23,8 +25,11 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.19.4",
     "morgan": "^1.10.1",
-    "multer": "^1.4.5-lts.1",
-    "slugify": "^1.6.6"
+    "multer": "^2.2.0",
+    "redis": "^6.0.0",
+    "sanitize-html": "^2.17.5",
+    "slugify": "^1.6.6",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"

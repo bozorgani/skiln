@@ -32,11 +32,12 @@ export function Toaster() {
   return (
     <ToastProvider>
       {toasts.map(function ({ id, title, description, action, variant, ...props }) {
-        const icon = getToastIcon(variant);
-        const hasIcon = variant !== 'default';
+        const normalizedVariant = variant ?? 'default';
+        const icon = getToastIcon(normalizedVariant);
+        const hasIcon = normalizedVariant !== 'default';
         
         return (
-          <Toast key={id} variant={variant as any} {...props}>
+          <Toast key={id} variant={normalizedVariant as any} {...props}>
             <div className="flex items-start gap-3 flex-1 min-w-0">
               {hasIcon && (
                 <div className="mt-0.5 flex-shrink-0">

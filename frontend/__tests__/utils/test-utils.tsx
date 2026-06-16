@@ -1,6 +1,7 @@
 import React, { ReactElement } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { User } from '@/types/user';
+import { CartProvider } from '@/contexts/CartContext';
 
 // Mock user data
 export const mockUser: User = {
@@ -42,7 +43,7 @@ export function renderWithProviders(
   }
 
   function Wrapper({ children }: { children: React.ReactNode }) {
-    return <>{children}</>;
+    return <CartProvider>{children}</CartProvider>;
   }
 
   return render(ui, { wrapper: Wrapper, ...renderOptions });

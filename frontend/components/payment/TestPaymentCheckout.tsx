@@ -13,7 +13,7 @@ interface TestPaymentCheckoutProps {
   orderId: string;
   courseId: string;
   amount: number;
-  onSuccess: () => void;
+  onSuccess: (result?: any) => void;
   onCancel?: () => void;
 }
 
@@ -39,27 +39,14 @@ export default function TestPaymentCheckout({
       // Simulate payment processing delay
       await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // Call backend to complete test payment
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-      const response = await fetch(`${API_URL}/payments/test-payment`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          orderId,
-          paymentId,
-          courseId,
-          amount,
-        }),
+      const response = await paymentsAPI.completeTestPayment({
+        orderId,
+        paymentId,
+        courseId,
+        amount,
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'خطا در تکمیل پرداخت تست');
-      }
+      const result = response.data;
       
       toast({
         title: 'پرداخت موفق',
@@ -71,7 +58,7 @@ export default function TestPaymentCheckout({
       setTimeout(() => {
         setSimulating(false);
         setProcessing(false);
-        onSuccess();
+        onSuccess(result?.data || result);
       }, 500);
 
     } catch (error: any) {

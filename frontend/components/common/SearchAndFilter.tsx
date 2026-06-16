@@ -12,7 +12,7 @@ interface SearchAndFilterProps {
   categories?: string[];
   levels?: string[];
   onSearchChange?: (search: string) => void;
-  onFilterChange?: (filters: { category?: string; level?: string }) => void;
+  onFilterChange?: (filters: { search?: string; category?: string; level?: string }) => void;
 }
 
 export default function SearchAndFilter({

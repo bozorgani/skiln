@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Clock, Eye, Heart, User, Calendar, ArrowRight, Share2, BookOpen, Tag } from 'lucide-react';
 import BlogCard from '@/components/blog/BlogCard';
+import ShareBlogButton from '@/components/blog/ShareBlogButton';
 import ScrollAnimation from '@/components/common/ScrollAnimation';
 import { formatRelativeTime } from '@/lib/dateUtils';
 
@@ -226,21 +227,7 @@ export default async function BlogPostPage({
                     <span className="font-black text-lg">اشتراک‌گذاری مقاله</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        if (typeof window !== 'undefined') {
-                          navigator.share?.({
-                            title: blog.title,
-                            text: blog.excerpt,
-                            url: window.location.href,
-                          });
-                        }
-                      }}
-                    >
-                      اشتراک‌گذاری
-                    </Button>
+<ShareBlogButton title={blog.title} text={blog.excerpt} />
                   </div>
                 </div>
               </CardContent>
@@ -330,81 +317,6 @@ export default async function BlogPostPage({
         </div>
       </main>
 
-      {/* Add custom styles for blog content */}
-      <style jsx global>{`
-        .blog-content {
-          color: hsl(var(--foreground));
-        }
-        .blog-content h1,
-        .blog-content h2,
-        .blog-content h3,
-        .blog-content h4,
-        .blog-content h5,
-        .blog-content h6 {
-          font-weight: 900;
-          margin-top: 2rem;
-          margin-bottom: 1rem;
-          color: hsl(var(--foreground));
-        }
-        .blog-content h1 {
-          font-size: 2.5rem;
-        }
-        .blog-content h2 {
-          font-size: 2rem;
-        }
-        .blog-content h3 {
-          font-size: 1.75rem;
-        }
-        .blog-content p {
-          margin-bottom: 1.5rem;
-          line-height: 1.875rem;
-        }
-        .blog-content ul,
-        .blog-content ol {
-          margin-bottom: 1.5rem;
-          padding-right: 2rem;
-        }
-        .blog-content li {
-          margin-bottom: 0.5rem;
-        }
-        .blog-content a {
-          color: hsl(var(--primary));
-          text-decoration: underline;
-        }
-        .blog-content a:hover {
-          color: hsl(var(--primary) / 0.8);
-        }
-        .blog-content img {
-          max-width: 100%;
-          height: auto;
-          border-radius: 1rem;
-          margin: 2rem 0;
-        }
-        .blog-content blockquote {
-          border-right: 4px solid hsl(var(--primary));
-          padding-right: 1.5rem;
-          margin: 2rem 0;
-          font-style: italic;
-          color: hsl(var(--muted-foreground));
-        }
-        .blog-content code {
-          background: hsl(var(--muted));
-          padding: 0.25rem 0.5rem;
-          border-radius: 0.25rem;
-          font-size: 0.875rem;
-        }
-        .blog-content pre {
-          background: hsl(var(--muted));
-          padding: 1.5rem;
-          border-radius: 0.75rem;
-          overflow-x: auto;
-          margin: 2rem 0;
-        }
-        .blog-content pre code {
-          background: transparent;
-          padding: 0;
-        }
-      `}</style>
     </div>
   );
 }

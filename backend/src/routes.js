@@ -1,4 +1,6 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const auth = require('./middlewares/auth');
 const validate = require('./middlewares/validate');
 const authRoutes = require('./modules/auth/auth.routes');
@@ -22,12 +24,38 @@ router.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+router.get('/docs/openapi.yaml', (_req, res, next) => {
+  const openApiPath = path.join(__dirname, '..', 'openapi.yaml');
+  fs.readFile(openApiPath, 'utf8', (error, content) => {
+    if (error) return next(error);
+    res.type('text/yaml').send(content);
+  });
+});
+
+router.get('/docs', (_req, res) => {
+  res.type('html').send(`<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Skiln API Docs</title>
+  <style>body{margin:0;font-family:system-ui,Tahoma,sans-serif}.top{padding:12px 20px;background:#0f172a;color:#fff}.top a{color:#93c5fd}</style>
+</head>
+<body>
+  <div class="top">Skiln API Docs — <a href="/api/docs/openapi.yaml">OpenAPI YAML</a></div>
+  <redoc spec-url="/api/docs/openapi.yaml"></redoc>
+  <script src="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"></script>
+</body>
+</html>`);
+});
+
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/courses', courseRoutes);
 router.use('/blogs', blogRoutes);
 router.use('/blog', blogRoutes); // Alias for backward compatibility
 router.use('/posts', blogRoutes); // Alias for admin-panel
+router.get('/categories', require('./modules/blog/blog.controller').getCategories);
 router.use('/orders', orderRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/tickets', ticketRoutes);

@@ -113,7 +113,9 @@ export default function RootLayout({
                 <Suspense fallback={null}>
                   <ScrollProgress />
                 </Suspense>
-                <Header />
+                <Suspense fallback={null}>
+                  <Header />
+                </Suspense>
                 <Suspense fallback={null}>
                   <CategoryNav />
                 </Suspense>

@@ -29,13 +29,13 @@ export default function ProtectedRoute({
 
     // Not authenticated
     if (!user) {
-      router.replace(redirectTo || '/login');
+      router.push(redirectTo || '/login');
       return;
     }
 
     // Require admin but user is not admin
     if (requireAdmin && user.role !== 'admin') {
-      router.replace(redirectTo || '/');
+      router.push(redirectTo || '/');
       return;
     }
   }, [user, loading, requireAdmin, redirectTo, router]);

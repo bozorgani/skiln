@@ -2,6 +2,7 @@ require('dotenv').config();
 const http = require('http');
 const app = require('./src/app');
 const connectDB = require('./src/config/db');
+const { closeRedisClient } = require('./src/config/redis');
 
 const PORT = process.env.PORT || 5000;
 let server;
@@ -30,12 +31,23 @@ process.on('unhandledRejection', (reason) => {
   }
 });
 
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM received, shutting down gracefully');
+const shutdown = async (signal) => {
+  logger.info(`${signal} received, shutting down gracefully`);
+  try {
+    await closeRedisClient();
+  } catch (error) {
+    logger.warn('Failed to close Redis connection:', error.message);
+  }
+
   if (server) {
     server.close(() => process.exit(0));
+  } else {
+    process.exit(0);
   }
-});
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 startServer();
 

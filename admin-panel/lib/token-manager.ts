@@ -18,14 +18,13 @@ export function getToken(): string | null {
   }
 
   // Try cookie first (preferred for SSR and cross-tab sync)
-  let token = Cookies.get(TOKEN_COOKIE_NAME);
-  
-  // Fallback to localStorage if cookie is not available
-  if (!token) {
-    token = localStorage.getItem(TOKEN_STORAGE_KEY);
+  const cookieToken = Cookies.get(TOKEN_COOKIE_NAME);
+  if (cookieToken) {
+    return cookieToken;
   }
   
-  return token || null;
+  // Fallback to localStorage if cookie is not available
+  return localStorage.getItem(TOKEN_STORAGE_KEY) || null;
 }
 
 /**

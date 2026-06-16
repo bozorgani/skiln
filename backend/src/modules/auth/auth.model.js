@@ -20,6 +20,11 @@ const refreshTokenSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    client: {
+      type: String,
+      enum: ['frontend', 'admin-panel'],
+      default: 'frontend',
+    },
   },
   {
     timestamps: true,

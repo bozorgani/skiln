@@ -29,7 +29,7 @@ interface PaymentDialogProps {
   payirUrl?: string;
   idpayUrl?: string;
   testPaymentUrl?: string;
-  onSuccess: () => void;
+  onSuccess: (result?: any) => void;
 }
 
 export default function PaymentDialog({
@@ -50,8 +50,8 @@ export default function PaymentDialog({
     testPaymentUrl ? 'test' : zarinpalUrl ? 'zarinpal' : payirUrl ? 'payir' : idpayUrl ? 'idpay' : 'stripe'
   );
 
-  const handleSuccess = () => {
-    onSuccess();
+  const handleSuccess = (result?: any) => {
+    onSuccess(result);
     onOpenChange(false);
   };
 

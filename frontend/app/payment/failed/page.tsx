@@ -1,12 +1,13 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { XCircle, ArrowLeft, RefreshCw, AlertTriangle, Phone, Mail } from 'lucide-react';
 import Link from 'next/link';
 
-export default function PaymentFailedPage() {
+function PaymentFailedPageContent() {
   const searchParams = useSearchParams();
   const reason = searchParams.get('reason');
 
@@ -148,5 +149,18 @@ export default function PaymentFailedPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+
+export default function PaymentFailedPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
+        در حال بارگذاری...
+      </div>
+    }>
+      <PaymentFailedPageContent />
+    </Suspense>
   );
 }

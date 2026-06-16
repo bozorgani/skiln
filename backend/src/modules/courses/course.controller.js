@@ -26,7 +26,8 @@ exports.setCourseStatus = catchAsync(async (req, res) => {
 });
 
 exports.listCourses = catchAsync(async (req, res) => {
-  const courses = await courseService.listCourses(req.query);
+  const canViewUnpublished = ['admin', 'teacher'].includes(req.user?.role);
+  const courses = await courseService.listCourses({ ...req.query, canViewUnpublished });
   // اگر courses یک array است، آن را به صورت { courses: [...] } برگردان
   // اگر courses یک object است (با pagination)، آن را همانطور برگردان
   const responseData = Array.isArray(courses) 
@@ -36,7 +37,8 @@ exports.listCourses = catchAsync(async (req, res) => {
 });
 
 exports.getCourse = catchAsync(async (req, res) => {
-  const course = await courseService.getCourseById(req.params.id, req.query);
+  const canViewUnpublished = ['admin', 'teacher'].includes(req.user?.role);
+  const course = await courseService.getCourseById(req.params.id, { ...req.query, canViewUnpublished });
   // Response format را مطابق با frontend تنظیم کن
   sendResponse(res, { data: { course }, message: 'Course retrieved' });
 });

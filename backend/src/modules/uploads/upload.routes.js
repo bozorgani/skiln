@@ -1,83 +1,75 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const auth = require('../../middlewares/auth');
+const ApiError = require('../../core/ApiError');
 const uploadController = require('./upload.controller');
 
 const router = express.Router();
 
-// Setup directories
-const videosDir = path.join(__dirname, '../../../uploads/videos');
-const imagesDir = path.join(__dirname, '../../../uploads/images');
+const sanitizeBaseName = (name) =>
+  path.basename(name || 'upload', path.extname(name || ''))
+    .normalize('NFKD')
+    .replace(/[^a-zA-Z0-9-_\u0600-\u06FF]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 80) || 'upload';
 
-if (!fs.existsSync(videosDir)) {
-  fs.mkdirSync(videosDir, { recursive: true });
-}
+const normalizeExtension = (file) => path.extname(file.originalname || '').toLowerCase();
 
-if (!fs.existsSync(imagesDir)) {
-  fs.mkdirSync(imagesDir, { recursive: true });
-}
+const buildSafeFilename = (file) => {
+  const ext = normalizeExtension(file);
+  const baseName = sanitizeBaseName(file.originalname);
+  const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+  return `${baseName}-${unique}${ext}`;
+};
 
-// Video upload configuration
-const videoStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, videosDir);
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const baseName = path.basename(file.originalname, ext).replace(/\s+/g, '-');
-    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, `${baseName}-${unique}${ext}`);
-  },
-});
+const allowedVideoTypes = new Set(['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime']);
+const allowedVideoExts = new Set(['.mp4', '.webm', '.ogg', '.mov']);
 
 const videoFileFilter = (_req, file, cb) => {
-  if (file.mimetype && file.mimetype.startsWith('video/')) {
+  const ext = normalizeExtension(file);
+  if (allowedVideoTypes.has(file.mimetype) && allowedVideoExts.has(ext)) {
+    file.safeFilename = buildSafeFilename(file);
     cb(null, true);
   } else {
-    cb(new Error('فقط فایل‌های ویدیویی مجاز هستند'));
+    cb(new ApiError(400, 'فقط فایل‌های ویدیویی معتبر مجاز هستند (MP4, WEBM, OGG, MOV)'));
   }
 };
 
-const videoUpload = multer({
-  storage: videoStorage,
-  fileFilter: videoFileFilter,
-  limits: {
-    fileSize: 500 * 1024 * 1024, // 500MB
-  },
-});
-
-// Image upload configuration
-const imageStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, imagesDir);
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const baseName = path.basename(file.originalname, ext).replace(/\s+/g, '-');
-    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, `${baseName}-${unique}${ext}`);
-  },
-});
+const allowedImageTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+const allowedImageExts = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 
 const imageFileFilter = (_req, file, cb) => {
-  if (file.mimetype && (file.mimetype.startsWith('image/') || ['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/gif'].includes(file.mimetype))) {
+  const ext = normalizeExtension(file);
+  if (allowedImageTypes.has(file.mimetype) && allowedImageExts.has(ext)) {
+    file.safeFilename = buildSafeFilename(file);
     cb(null, true);
   } else {
-    cb(new Error('فقط فایل‌های تصویری مجاز هستند (JPEG, PNG, WEBP, GIF)'));
+    cb(new ApiError(400, 'فقط فایل‌های تصویری معتبر مجاز هستند (JPEG, PNG, WEBP, GIF)'));
   }
 };
 
-const imageUpload = multer({
-  storage: imageStorage,
-  fileFilter: imageFileFilter,
+const memoryStorage = multer.memoryStorage();
+
+const videoUpload = multer({
+  storage: memoryStorage,
+  fileFilter: videoFileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
+    files: 1,
+    fileSize: Number(process.env.MAX_VIDEO_UPLOAD_BYTES) || 500 * 1024 * 1024,
   },
 });
 
-// Routes
+const imageUpload = multer({
+  storage: memoryStorage,
+  fileFilter: imageFileFilter,
+  limits: {
+    files: 1,
+    fileSize: Number(process.env.MAX_IMAGE_UPLOAD_BYTES) || 10 * 1024 * 1024,
+  },
+});
+
 router.post(
   '/videos',
   auth(['admin', 'teacher']),
@@ -93,5 +85,3 @@ router.post(
 );
 
 module.exports = router;
-
-
