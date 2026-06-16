@@ -1,0 +1,37 @@
+{
+  "name": "lms-bozorgani-testing",
+  "version": "1.0.0",
+  "description": "مجموعه تست‌های جامع برای پروژه LMS Bozorgani",
+  "main": "run-all-tests.js",
+  "scripts": {
+    "test": "node run-all-tests.js",
+    "test:api": "node api-test-suite.js",
+    "test:integration": "node integration-test-suite.js",
+    "test:errors": "node error-scenarios-test.js",
+    "test:auth": "node auth-flow-test.js",
+    "test:payment": "node payment-flow-test.js",
+    "install-deps": "npm install",
+    "setup": "npm run install-deps && mkdir -p test-results",
+    "clean": "rm -rf test-results/*.json && rm -rf test-results/*.png"
+  },
+  "dependencies": {
+    "axios": "^1.6.2",
+    "puppeteer": "^21.5.0",
+    "form-data": "^4.0.0",
+    "chalk": "^4.1.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "testing",
+    "lms",
+    "api",
+    "integration",
+    "automation"
+  ],
+  "author": "LMS Bozorgani Team",
+  "license": "MIT"
+}
+
+

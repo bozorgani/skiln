@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /checkout/
+Disallow: /payment/
+
+# Sitemap
+Sitemap: https://www.skiln.ir/sitemap.xml
+
+# Crawl-delay
+Crawl-delay: 1
+
+

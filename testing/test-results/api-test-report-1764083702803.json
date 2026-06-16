@@ -1,0 +1,109 @@
+{
+  "summary": {
+    "passed": 4,
+    "failed": 13,
+    "total": 17,
+    "successRate": "23.5",
+    "timestamp": "2025-11-25T15:15:02.803Z"
+  },
+  "tests": [
+    {
+      "name": "Health Check",
+      "status": "PASSED",
+      "timestamp": "2025-11-25T15:15:02.658Z"
+    },
+    {
+      "name": "User Registration",
+      "status": "FAILED",
+      "error": "Request failed with status code 400",
+      "timestamp": "2025-11-25T15:15:02.663Z"
+    },
+    {
+      "name": "User Login",
+      "status": "PASSED",
+      "timestamp": "2025-11-25T15:15:02.776Z"
+    },
+    {
+      "name": "Get Current User",
+      "status": "FAILED",
+      "error": "Request failed with status code 401",
+      "timestamp": "2025-11-25T15:15:02.779Z"
+    },
+    {
+      "name": "Create Course",
+      "status": "FAILED",
+      "error": "Request failed with status code 401",
+      "timestamp": "2025-11-25T15:15:02.782Z"
+    },
+    {
+      "name": "Get Courses",
+      "status": "PASSED",
+      "timestamp": "2025-11-25T15:15:02.788Z"
+    },
+    {
+      "name": "Get Course Details",
+      "status": "FAILED",
+      "error": "No test course available",
+      "timestamp": "2025-11-25T15:15:02.788Z"
+    },
+    {
+      "name": "Get Course Analytics",
+      "status": "FAILED",
+      "error": "No test course available",
+      "timestamp": "2025-11-25T15:15:02.788Z"
+    },
+    {
+      "name": "Create Order",
+      "status": "FAILED",
+      "error": "No test course available",
+      "timestamp": "2025-11-25T15:15:02.788Z"
+    },
+    {
+      "name": "Create Payment",
+      "status": "FAILED",
+      "error": "No test order available",
+      "timestamp": "2025-11-25T15:15:02.789Z"
+    },
+    {
+      "name": "Create Ticket",
+      "status": "FAILED",
+      "error": "Request failed with status code 401",
+      "timestamp": "2025-11-25T15:15:02.790Z"
+    },
+    {
+      "name": "Get Tickets",
+      "status": "FAILED",
+      "error": "Request failed with status code 401",
+      "timestamp": "2025-11-25T15:15:02.792Z"
+    },
+    {
+      "name": "Create Blog Post",
+      "status": "FAILED",
+      "error": "Request failed with status code 401",
+      "timestamp": "2025-11-25T15:15:02.795Z"
+    },
+    {
+      "name": "Get Admin Stats",
+      "status": "FAILED",
+      "error": "Request failed with status code 401",
+      "timestamp": "2025-11-25T15:15:02.797Z"
+    },
+    {
+      "name": "Error Scenarios",
+      "status": "FAILED",
+      "error": "Expected 400, got 401",
+      "timestamp": "2025-11-25T15:15:02.800Z"
+    },
+    {
+      "name": "SQL Injection Protection",
+      "status": "PASSED",
+      "timestamp": "2025-11-25T15:15:02.801Z"
+    },
+    {
+      "name": "XSS Protection",
+      "status": "FAILED",
+      "error": "Request failed with status code 401",
+      "timestamp": "2025-11-25T15:15:02.803Z"
+    }
+  ]
+}
