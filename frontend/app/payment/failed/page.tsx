@@ -1,15 +1,18 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { XCircle, ArrowLeft, RefreshCw, AlertTriangle, Phone, Mail } from 'lucide-react';
+import { XCircle, ArrowLeft, RefreshCw, AlertTriangle, Phone, Mail, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { paymentsAPI } from '@/lib/api';
 
 function PaymentFailedPageContent() {
   const searchParams = useSearchParams();
   const reason = searchParams.get('reason');
+  const paymentId = searchParams.get('paymentId');
+  const [retrying, setRetrying] = useState(false);
 
   const getReasonMessage = () => {
     switch (reason) {
@@ -41,6 +44,30 @@ function PaymentFailedPageContent() {
   };
 
   const reasonInfo = getReasonMessage();
+
+  const handleRetry = async () => {
+    if (!paymentId) {
+      window.history.back();
+      return;
+    }
+
+    setRetrying(true);
+    try {
+      const response = await paymentsAPI.retry(paymentId);
+      const data = response.data?.data;
+      const redirectUrl = data?.zarinpalUrl || data?.paymentUrl || data?.testPaymentUrl;
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
+        return;
+      }
+      window.location.href = '/checkout';
+    } catch (error) {
+      window.location.href = '/checkout';
+    } finally {
+      setRetrying(false);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -127,9 +154,10 @@ function PaymentFailedPageContent() {
                 <Button
                   variant="default"
                   className="flex-1 text-sm sm:text-base"
-                  onClick={() => window.history.back()}
+                  onClick={handleRetry}
+                  disabled={retrying}
                 >
-                  <RefreshCw className="h-4 w-4 ml-2" />
+                  {retrying ? <Loader2 className="h-4 w-4 ml-2 animate-spin" /> : <RefreshCw className="h-4 w-4 ml-2" />}
                   تلاش مجدد
                 </Button>
                 <Link href="/" className="flex-1">

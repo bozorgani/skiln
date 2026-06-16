@@ -97,6 +97,8 @@ export const paymentsAPI = {
   verify: (paymentId: string, paymentIntentId?: string) =>
     api.post('/payments/verify', { paymentId, paymentIntentId }),
   getById: (paymentId: string) => api.get(`/payments/${paymentId}`),
+  getReceipt: (paymentId: string) => api.get(`/payments/${paymentId}/receipt`),
+  retry: (paymentId: string) => api.post(`/payments/${paymentId}/retry`),
   getMyPayments: () => api.get('/payments/my-payments'),
   completeTestPayment: (payload: { orderId?: string; paymentId?: string; courseId?: string; amount?: number }) =>
     api.post('/payments/test-payment', payload),

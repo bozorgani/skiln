@@ -74,6 +74,191 @@ const enrollUserInCourse = async (order) => {
   }
 };
 
+
+const getBackendPublicUrl = () =>
+  (process.env.PAYMENT_CALLBACK_BASE_URL || process.env.BACKEND_PUBLIC_URL || 'http://localhost:5000').replace(/\/$/, '');
+
+const getFrontendUrl = () =>
+  (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+
+const getZarinpalConfig = () => {
+  const sandbox = process.env.ZARINPAL_SANDBOX === 'true';
+  return {
+    merchantId: process.env.ZARINPAL_MERCHANT_ID,
+    requestUrl: sandbox
+      ? 'https://sandbox.zarinpal.com/pg/v4/payment/request.json'
+      : 'https://payment.zarinpal.com/pg/v4/payment/request.json',
+    verifyUrl: sandbox
+      ? 'https://sandbox.zarinpal.com/pg/v4/payment/verify.json'
+      : 'https://payment.zarinpal.com/pg/v4/payment/verify.json',
+    startPayUrl: sandbox
+      ? 'https://sandbox.zarinpal.com/pg/StartPay'
+      : 'https://www.zarinpal.com/pg/StartPay',
+    amountMultiplier: Number(process.env.ZARINPAL_AMOUNT_MULTIPLIER) || 10,
+  };
+};
+
+const toZarinpalAmount = (amount) => Math.round(Number(amount || 0) * getZarinpalConfig().amountMultiplier);
+
+const callZarinpal = async (url, payload) => {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new ApiError(502, data?.errors?.message || 'خطا در ارتباط با زرین‌پال', data?.errors, 'ZARINPAL_HTTP_ERROR');
+  }
+  return data;
+};
+
+const markOrderStatus = async (orderId, status) => {
+  if (!orderId) return null;
+  const order = await Order.findById(orderId);
+  if (!order) return null;
+  order.status = status;
+  await order.save();
+  return order;
+};
+
+const requestZarinpalPayment = async (paymentId) => {
+  const payment = await populatePaymentQuery(Payment.findById(paymentId));
+  if (!payment) throw new ApiError(404, 'Payment not found');
+  if (payment.provider !== 'zarinpal') throw new ApiError(400, 'Payment provider is not Zarinpal');
+
+  const config = getZarinpalConfig();
+  if (!config.merchantId) throw new ApiError(500, 'ZARINPAL_MERCHANT_ID is not configured');
+
+  const order = payment.order;
+  const course = order?.course;
+  const user = order?.user;
+  const callbackUrl = `${getBackendPublicUrl()}/api/payments/zarinpal/callback?paymentId=${payment._id}`;
+
+  const payload = {
+    merchant_id: config.merchantId,
+    amount: toZarinpalAmount(payment.amount),
+    callback_url: callbackUrl,
+    description: `خرید دوره ${course?.title || ''}`.trim() || 'خرید دوره Skiln',
+    metadata: {
+      mobile: user?.phone || undefined,
+      email: user?.email || undefined,
+      order_id: String(order?._id || ''),
+      payment_id: String(payment._id),
+    },
+  };
+
+  const result = await callZarinpal(config.requestUrl, payload);
+  const code = result?.data?.code;
+  const authority = result?.data?.authority;
+
+  if (code !== 100 || !authority) {
+    payment.status = 'failed';
+    payment.metadata = {
+      ...(payment.metadata || {}),
+      zarinpal: { ...(payment.metadata?.zarinpal || {}), requestPayload: payload, requestResult: result },
+      failedAt: new Date(),
+    };
+    await payment.save();
+    await markOrderStatus(order?._id, 'failed');
+    throw new ApiError(502, result?.errors?.message || 'ایجاد درخواست پرداخت زرین‌پال ناموفق بود', result?.errors, 'ZARINPAL_REQUEST_FAILED');
+  }
+
+  payment.status = 'pending';
+  payment.transactionId = `ZARINPAL-${authority}`;
+  payment.metadata = {
+    ...(payment.metadata || {}),
+    zarinpal: {
+      ...(payment.metadata?.zarinpal || {}),
+      authority,
+      amount: payload.amount,
+      callbackUrl,
+      requestedAt: new Date(),
+      requestResult: result.data,
+    },
+  };
+  await payment.save();
+  await markOrderStatus(order?._id, 'pending');
+
+  return {
+    authority,
+    paymentUrl: `${config.startPayUrl}/${authority}`,
+  };
+};
+
+const verifyZarinpalPayment = async ({ paymentId, authority, status }) => {
+  const payment = await Payment.findById(paymentId);
+  if (!payment) throw new ApiError(404, 'Payment not found');
+  if (payment.provider !== 'zarinpal') throw new ApiError(400, 'Payment provider is not Zarinpal');
+
+  const order = await Order.findById(payment.order);
+  if (!order) throw new ApiError(404, 'Order not found');
+
+  const expectedAuthority = payment.metadata?.zarinpal?.authority;
+  if (expectedAuthority && authority && expectedAuthority !== authority) {
+    throw new ApiError(400, 'Authority mismatch', [], 'ZARINPAL_AUTHORITY_MISMATCH');
+  }
+
+  if (payment.status === 'succeeded') {
+    return formatPayment(await getPaymentById(payment._id));
+  }
+
+  if (status !== 'OK') {
+    payment.status = status === 'NOK' ? 'cancelled' : 'failed';
+    payment.metadata = {
+      ...(payment.metadata || {}),
+      zarinpal: { ...(payment.metadata?.zarinpal || {}), callbackStatus: status, callbackAt: new Date() },
+    };
+    await payment.save();
+    order.status = payment.status === 'cancelled' ? 'cancelled' : 'failed';
+    await order.save();
+    return formatPayment(await getPaymentById(payment._id));
+  }
+
+  const config = getZarinpalConfig();
+  const payload = {
+    merchant_id: config.merchantId,
+    amount: toZarinpalAmount(payment.amount),
+    authority: authority || expectedAuthority,
+  };
+  const result = await callZarinpal(config.verifyUrl, payload);
+  const code = result?.data?.code;
+
+  if (code === 100 || code === 101) {
+    order.status = 'paid';
+    await order.save();
+    await enrollUserInCourse(order);
+
+    payment.status = 'succeeded';
+    payment.transactionId = result?.data?.ref_id ? `ZARINPAL-${result.data.ref_id}` : payment.transactionId;
+    payment.metadata = {
+      ...(payment.metadata || {}),
+      zarinpal: {
+        ...(payment.metadata?.zarinpal || {}),
+        verifiedAt: new Date(),
+        verifyResult: result.data,
+        refId: result?.data?.ref_id,
+        cardPan: result?.data?.card_pan,
+        fee: result?.data?.fee,
+      },
+      completedAt: new Date(),
+    };
+    await payment.save();
+    return formatPayment(await getPaymentById(payment._id));
+  }
+
+  payment.status = 'failed';
+  payment.metadata = {
+    ...(payment.metadata || {}),
+    zarinpal: { ...(payment.metadata?.zarinpal || {}), verifyPayload: payload, verifyResult: result },
+    failedAt: new Date(),
+  };
+  await payment.save();
+  order.status = 'failed';
+  await order.save();
+  throw new ApiError(400, result?.errors?.message || 'تایید پرداخت زرین‌پال ناموفق بود', result?.errors, 'ZARINPAL_VERIFY_FAILED');
+};
+
 const createPayment = async ({
   order,
   amount,
@@ -310,9 +495,14 @@ const createPaymentIntent = async (courseId, userId, couponCode = null) => {
   });
 
   const clientSecret = null;
-  const zarinpalUrl = null;
+  let zarinpalUrl = null;
   const payirUrl = null;
   const idpayUrl = null;
+
+  if (provider === 'zarinpal') {
+    const zarinpalRequest = await requestZarinpalPayment(payment._id);
+    zarinpalUrl = zarinpalRequest.paymentUrl;
+  }
 
   return {
     paymentRequired: true,
@@ -384,6 +574,50 @@ const completeTestPayment = async ({ orderId, paymentId }, userId) => {
   };
 };
 
+
+const retryPayment = async (paymentId, user) => {
+  const payment = await getPaymentById(paymentId, user);
+  if (payment.status === 'succeeded') {
+    throw new ApiError(400, 'این پرداخت قبلاً با موفقیت انجام شده است');
+  }
+
+  const order = await Order.findById(payment.order._id || payment.order);
+  if (!order) throw new ApiError(404, 'Order not found');
+
+  if (payment.provider === 'zarinpal') {
+    const retry = await requestZarinpalPayment(payment._id);
+    return {
+      payment: formatPayment(await getPaymentById(payment._id, user)),
+      paymentUrl: retry.paymentUrl,
+      zarinpalUrl: retry.paymentUrl,
+    };
+  }
+
+  if (payment.provider === 'test') {
+    order.status = 'pending';
+    await order.save();
+    const testPaymentUrl = `${getFrontendUrl()}/payment/test?paymentId=${payment._id}&orderId=${order._id}&amount=${payment.amount}`;
+    return {
+      payment: formatPayment(payment),
+      testPaymentUrl,
+    };
+  }
+
+  throw new ApiError(400, 'امکان تلاش مجدد برای این روش پرداخت فعال نیست');
+};
+
+const getReceipt = async (paymentId, user) => {
+  const payment = await getPaymentDetails(paymentId, user);
+  if (payment.status !== 'succeeded') {
+    throw new ApiError(400, 'رسید فقط برای پرداخت موفق قابل دریافت است');
+  }
+  return {
+    ...payment,
+    receiptNumber: payment.metadata?.zarinpal?.refId || payment.transactionId || payment.paymentId,
+    issuedAt: payment.paidAt || payment.updatedAt,
+  };
+};
+
 const adminPurchase = async (courseId, userId, adminId) => {
   const course = await Course.findById(courseId);
   if (!course) {
@@ -443,6 +677,9 @@ module.exports = {
   refundTransaction,
   createPaymentIntent,
   completeTestPayment,
+  verifyZarinpalPayment,
+  retryPayment,
+  getReceipt,
   adminPurchase,
   formatPayment,
 };

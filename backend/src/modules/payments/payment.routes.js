@@ -50,6 +50,20 @@ router.post(
   paymentController.adminPurchase
 );
 
+router.get('/zarinpal/callback', paymentController.zarinpalCallback);
+
+router.post(
+  '/:id/retry',
+  auth(),
+  paymentController.retryPayment
+);
+
+router.get(
+  '/:id/receipt',
+  auth(),
+  paymentController.getReceipt
+);
+
 router.get('/:id', auth(), paymentController.getPaymentById);
 
 router.patch(

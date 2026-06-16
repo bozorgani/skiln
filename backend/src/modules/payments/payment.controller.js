@@ -89,6 +89,44 @@ exports.completeTestPayment = catchAsync(async (req, res) => {
   });
 });
 
+
+exports.zarinpalCallback = catchAsync(async (req, res) => {
+  const { paymentId, Authority, authority, Status, status } = req.query;
+  const resolvedPaymentId = paymentId;
+  const resolvedAuthority = Authority || authority;
+  const resolvedStatus = Status || status;
+
+  if (!resolvedPaymentId) {
+    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/failed?reason=not_found`);
+  }
+
+  try {
+    const payment = await paymentService.verifyZarinpalPayment({
+      paymentId: resolvedPaymentId,
+      authority: resolvedAuthority,
+      status: resolvedStatus,
+    });
+
+    if (payment.status === 'succeeded') {
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/success?paymentId=${payment.paymentId}`);
+    }
+
+    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/failed?paymentId=${resolvedPaymentId}&reason=cancelled`);
+  } catch (error) {
+    return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/failed?paymentId=${resolvedPaymentId}&reason=verification_failed`);
+  }
+});
+
+exports.retryPayment = catchAsync(async (req, res) => {
+  const result = await paymentService.retryPayment(req.params.id, req.user);
+  sendResponse(res, { data: result, message: 'Payment retry created' });
+});
+
+exports.getReceipt = catchAsync(async (req, res) => {
+  const receipt = await paymentService.getReceipt(req.params.id, req.user);
+  sendResponse(res, { data: { receipt }, message: 'Payment receipt retrieved' });
+});
+
 exports.adminPurchase = catchAsync(async (req, res) => {
   const { courseId, userId } = req.body;
   const adminId = req.user._id;
