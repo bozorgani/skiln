@@ -29,15 +29,16 @@ export default function AdvancedCourseCard({ course, index = 0 }: AdvancedCourse
         {/* Animated gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-indigo-500/0 to-purple-500/0 group-hover:from-primary/10 group-hover:via-indigo-500/10 group-hover:to-purple-500/10 transition-all duration-700 z-0" />
         
-        {/* Badge with animation */}
-        {hasDiscount && (
-          <div className="absolute top-5 left-5 z-20 bg-gradient-to-r from-red-500 via-pink-500 to-rose-500 text-white px-4 py-1.5 rounded-full text-xs font-black shadow-2xl animate-pulse border-2 border-white/30 group-hover:scale-110 transition-transform duration-300">
-            <span className="flex items-center gap-1">
-              <Flame className="h-3 w-3" />
-              {discountPercent}% تخفیف
-            </span>
-          </div>
-        )}
+        {/* Badge with animation - always render wrapper to avoid hydration child order mismatch */}
+        <div className={cn(
+          "absolute top-5 left-5 z-20 bg-gradient-to-r from-red-500 via-pink-500 to-rose-500 text-white px-4 py-1.5 rounded-full text-xs font-black shadow-2xl animate-pulse border-2 border-white/30 group-hover:scale-110 transition-transform duration-300",
+          hasDiscount ? "flex" : "hidden"
+        )}>
+          <span className="flex items-center gap-1">
+            <Flame className="h-3 w-3" />
+            {discountPercent}% تخفیف
+          </span>
+        </div>
 
         {/* Trending badge */}
         {course.studentsEnrolled > 100 && (

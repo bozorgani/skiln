@@ -472,29 +472,15 @@ export default async function LessonPage({
                   )}
 
                   {/* Navigation Buttons */}
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 border-t border-border/50">
-                    {prevLesson ? (
-                      <Link href={`/courses/${id}/lessons/${prevLesson._id}`}>
-                        <Button 
-                          variant="outline" 
-                          className="w-full sm:w-auto gap-2 rounded-xl border-2 hover:border-primary transition-all"
-                        >
-                          <ArrowRight className="h-4 w-4" />
-                          <span>درس قبلی</span>
-                        </Button>
-                      </Link>
-                    ) : (
-                      <div></div>
-                    )}
-                    
+                  <div className="flex flex-col sm:flex-row-reverse items-stretch sm:items-center justify-between gap-3 pt-4 border-t border-border/50">
                     {nextLesson ? (
                       canNavigateToNext ? (
-                        <Link href={`/courses/${id}/lessons/${nextLesson._id}`}>
+                        <Link href={`/courses/${id}/lessons/${nextLesson._id}`} className="w-full sm:w-auto">
                           <Button 
                             className="w-full sm:w-auto gap-2 rounded-xl bg-gradient-to-r from-primary via-indigo-600 to-purple-600 hover:from-primary/90 hover:via-indigo-600/90 hover:to-purple-600/90 text-white shadow-lg hover:shadow-xl transition-all"
                           >
+                            <ArrowRight className="h-4 w-4" />
                             <span>درس بعدی</span>
-                            <ArrowLeft className="h-4 w-4" />
                           </Button>
                         </Link>
                       ) : (
@@ -508,7 +494,7 @@ export default async function LessonPage({
                         </Button>
                       )
                     ) : (
-                      <div className="w-full">
+                      <div className="w-full sm:w-auto">
                         {progress?.completionPercentage === 100 && progress?.certificateIssued ? (
                           <Link href={`/certificates/${id}`}>
                             <Button 
@@ -526,8 +512,21 @@ export default async function LessonPage({
                         )}
                       </div>
                     )}
+
+                    {prevLesson ? (
+                      <Link href={`/courses/${id}/lessons/${prevLesson._id}`} className="w-full sm:w-auto">
+                        <Button 
+                          variant="outline" 
+                          className="w-full sm:w-auto gap-2 rounded-xl border-2 hover:border-primary transition-all"
+                        >
+                          <span>درس قبلی</span>
+                          <ArrowLeft className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                    ) : (
+                      <div className="hidden sm:block" />
+                    )}
                   </div>
-                </div>
               </CardContent>
             </Card>
           </div>

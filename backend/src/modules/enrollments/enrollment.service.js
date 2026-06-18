@@ -40,18 +40,28 @@ const getMyCourses = async (userId) => {
         ? await Payment.findOne({ order: order._id }).sort({ createdAt: -1 })
         : null;
 
-      // Calculate progress (this is a simple example - you might want to track progress separately)
       const totalLessons = course.sections.reduce(
-        (sum, section) => sum + section.lessons.length,
+        (sum, section) => sum + (section.lessons?.length || 0),
         0
       );
 
+      const progress = await progressService.getOrCreateProgress(course._id, userId);
+      if (progress.totalLessons !== totalLessons) {
+        progress.totalLessons = totalLessons;
+      }
+      progress.completionPercentage = totalLessons > 0
+        ? Math.round(((progress.completedLessons || []).length / totalLessons) * 100)
+        : 0;
+      await progress.save();
+
       return {
+        _id: `${userId}-${course._id}`,
         course: {
           _id: course._id,
           title: course.title,
           description: course.description,
           price: course.price,
+          discountPercent: course.discountPercent || 0,
           thumbnail: course.thumbnail,
           teacher: course.teacher,
           sections: course.sections,
@@ -65,14 +75,18 @@ const getMyCourses = async (userId) => {
               _id: payment._id,
               amount: payment.amount,
               status: payment.status,
-              method: payment.method,
+              method: payment.method || payment.provider,
               createdAt: payment.createdAt,
             }
           : null,
         progress: {
           totalLessons,
-          completedLessons: 0, // This should be tracked separately
-          percentage: 0, // This should be calculated based on completed lessons
+          completedLessons: progress.completedLessons || [],
+          percentage: progress.completionPercentage || 0,
+          completionPercentage: progress.completionPercentage || 0,
+          lastWatchedLesson: progress.lastWatchedLesson,
+          updatedAt: progress.updatedAt,
+          certificateIssued: progress.certificateIssued || false,
         },
       };
     })

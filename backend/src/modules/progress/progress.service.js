@@ -125,6 +125,15 @@ const getProgress = async (courseId, userId) => {
     0
   );
 
+  const recalculatedPercentage = totalLessons > 0
+    ? Math.round(((progress.completedLessons || []).length / totalLessons) * 100)
+    : 0;
+
+  if (progress.completionPercentage !== recalculatedPercentage) {
+    progress.completionPercentage = recalculatedPercentage;
+    await progress.save();
+  }
+
   // Get certificate if exists
   const certificate = await Certificate.findOne({ user: userId, course: courseId });
 

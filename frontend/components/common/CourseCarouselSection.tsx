@@ -213,11 +213,9 @@ function CourseCarouselCard({ course }: { course: any }) {
 
             {/* Price */}
             <div className="flex items-center gap-x-2.5">
-              {hasDiscount && (
-                <div className="text-sm font-medium p-1 rounded bg-green-500 text-white">
-                  {discountPercent}%
-                </div>
-              )}
+              <div className={`text-sm font-medium p-1 rounded bg-green-500 text-white ${hasDiscount ? '' : 'hidden'}`}>
+                {discountPercent}%
+              </div>
               <div className="flex flex-col items-end">
                 {hasDiscount && (
                   <span className="text-sm text-slate-500 dark:text-white/70 -mb-1.5 line-through">

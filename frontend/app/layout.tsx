@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Vazirmatn } from "next/font/google";
-import { Suspense, lazy } from "react";
+import { Suspense } from "react";
 import "./globals.css";
 import { Providers } from "./providers";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -8,10 +8,9 @@ import { CartProvider } from "@/contexts/CartContext";
 import { Toaster } from "@/components/ui/toaster";
 import ErrorBoundaryWrapper from "@/components/common/ErrorBoundaryWrapper";
 import Header from "@/components/layout/Header";
-// Lazy load non-critical components
-const CategoryNav = lazy(() => import("@/components/layout/CategoryNav"));
-const CursorFollower = lazy(() => import("@/components/common/CursorFollower"));
-const ScrollProgress = lazy(() => import("@/components/common/ScrollProgress"));
+import CategoryNav from "@/components/layout/CategoryNav";
+import CursorFollower from "@/components/common/CursorFollower";
+import ScrollProgress from "@/components/common/ScrollProgress";
 
 const vazir = Vazirmatn({ 
   subsets: ["latin", "arabic"],

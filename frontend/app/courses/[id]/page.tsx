@@ -669,26 +669,35 @@ export default async function CourseDetailPage({
               {/* Purchase Card */}
               <Card className="border-2 shadow-xl">
                 <CardHeader className="pb-4 border-b">
-                  <div className="flex items-baseline gap-2">
-                    {finalPrice === 0 ? (
-                      <CardTitle className="text-2xl md:text-3xl font-bold text-primary">رایگان</CardTitle>
-                    ) : (
-                      <div className="space-y-1">
-                        {hasDiscount && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-muted-foreground line-through">{originalPrice.toLocaleString('fa-IR')} تومان</span>
-                            <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 text-xs font-bold">{discountPercent}% تخفیف</span>
+                  {isEnrolled ? (
+                    <div className="rounded-xl bg-green-500/10 border border-green-500/20 px-4 py-3">
+                      <CardTitle className="text-lg md:text-xl font-bold text-green-600 dark:text-green-400 flex items-center gap-2">
+                        <CheckCircle2 className="h-5 w-5" />
+                        شما در این دوره ثبت‌نام کرده‌اید
+                      </CardTitle>
+                    </div>
+                  ) : (
+                    <div className="flex items-baseline gap-2">
+                      {finalPrice === 0 ? (
+                        <CardTitle className="text-2xl md:text-3xl font-bold text-primary">رایگان</CardTitle>
+                      ) : (
+                        <div className="space-y-1">
+                          {hasDiscount && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-muted-foreground line-through">{originalPrice.toLocaleString('fa-IR')} تومان</span>
+                              <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 text-xs font-bold">{discountPercent}% تخفیف</span>
+                            </div>
+                          )}
+                          <div className="flex items-baseline gap-2">
+                            <CardTitle className="text-2xl md:text-3xl font-bold">
+                              {finalPrice.toLocaleString('fa-IR')}
+                            </CardTitle>
+                            <span className="text-base text-muted-foreground">تومان</span>
                           </div>
-                        )}
-                        <div className="flex items-baseline gap-2">
-                          <CardTitle className="text-2xl md:text-3xl font-bold">
-                            {finalPrice.toLocaleString('fa-IR')}
-                          </CardTitle>
-                          <span className="text-base text-muted-foreground">تومان</span>
                         </div>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent className="pt-6 space-y-6">
                   <PurchaseButton courseId={id} course={course} isEnrolled={isEnrolled} />

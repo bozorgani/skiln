@@ -8,6 +8,7 @@ import { CheckCircle2, ArrowLeft, BookOpen, Calendar, CreditCard, Loader2 } from
 import Link from 'next/link';
 import Image from 'next/image';
 import { paymentsAPI } from '@/lib/api';
+import { getImageUrl } from '@/lib/image-utils';
 
 function PaymentSuccessPageContent() {
   const router = useRouter();
@@ -96,7 +97,7 @@ function PaymentSuccessPageContent() {
                       {payment.course.thumbnail && (
                         <div className="relative w-full sm:w-32 h-32 sm:h-32 rounded-lg overflow-hidden flex-shrink-0">
                           <Image
-                            src={payment.course.thumbnail}
+                            src={getImageUrl(payment.course.thumbnail)}
                             alt={payment.course.title}
                             fill
                             className="object-cover"

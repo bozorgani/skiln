@@ -433,21 +433,23 @@ export default function DashboardPage() {
                 {filteredEnrollments.map((enrollment) => {
                   const course = enrollment.course;
                   
-                  // Calculate progress
-                  const totalLessons = course.lessons?.length || 0;
-                  const completedLessons = enrollment.progress?.completedLessons?.length || 0;
-                  const progress = totalLessons > 0 
-                    ? Math.round((completedLessons / totalLessons) * 100)
-                    : 0;
+                  // Calculate progress from backend progress data and course sections
+                  const totalLessons = enrollment.progress?.totalLessons || course.sections?.reduce((sum: number, section: any) => sum + (section.lessons?.length || 0), 0) || course.lessons?.length || 0;
+                  const completedLessons = Array.isArray(enrollment.progress?.completedLessons) ? enrollment.progress.completedLessons.length : 0;
+                  const progress = typeof enrollment.progress?.completionPercentage === 'number'
+                    ? enrollment.progress.completionPercentage
+                    : totalLessons > 0 
+                      ? Math.round((completedLessons / totalLessons) * 100)
+                      : 0;
                   const isCompleted = progress === 100;
 
                   // Get last accessed date
-                  const lastAccessed = enrollment.progress?.lastAccessed 
-                    ? new Date(enrollment.progress.lastAccessed).toLocaleDateString('fa-IR')
+                  const lastAccessed = enrollment.progress?.updatedAt 
+                    ? new Date(enrollment.progress.updatedAt).toLocaleDateString('fa-IR')
                     : null;
 
                   return (
-                    <Card key={enrollment._id} className="overflow-hidden hover:shadow-2xl transition-all duration-500 border-2 hover:border-primary/50 group hover-lift">
+                    <Card key={enrollment._id || `${user?.id || user?._id}-${course._id}`} className="overflow-hidden hover:shadow-2xl transition-all duration-500 border-2 hover:border-primary/50 group hover-lift">
                       <Link href={`/courses/${course._id}`}>
                         <div className="relative h-40 sm:h-48 w-full overflow-hidden bg-gradient-to-br from-primary/20 to-indigo-500/20">
                           <Image

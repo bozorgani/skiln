@@ -1,4 +1,4 @@
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { cookies } from 'next/headers';
@@ -8,13 +8,12 @@ import SearchAndFilterClient from '@/components/common/SearchAndFilterClient';
 import AdvancedCourseCard from '@/components/common/AdvancedCourseCard';
 import { getImageUrl } from '@/lib/image-utils';
 import { calculateCourseDuration } from '@/lib/course-utils';
-// Dynamic imports for heavy components
-const CourseCarouselSection = lazy(() => import('@/components/common/CourseCarouselSection'));
-const ScrollAnimation = lazy(() => import('@/components/common/ScrollAnimation'));
-const MagneticButton = lazy(() => import('@/components/common/MagneticButton'));
-const HeroSection = lazy(() => import('@/components/common/HeroSection'));
-const AnimatedCounter = lazy(() => import('@/components/common/AnimatedCounter'));
-const RevealOnScroll = lazy(() => import('@/components/common/RevealOnScroll'));
+import CourseCarouselSection from '@/components/common/CourseCarouselSection';
+import ScrollAnimation from '@/components/common/ScrollAnimation';
+import MagneticButton from '@/components/common/MagneticButton';
+import HeroSection from '@/components/common/HeroSection';
+import AnimatedCounter from '@/components/common/AnimatedCounter';
+import RevealOnScroll from '@/components/common/RevealOnScroll';
 // Lazy load icons - only import what's needed
 import { 
   Star, TrendingUp, Users, Clock, BookOpen, ArrowLeft, ArrowRight, 
