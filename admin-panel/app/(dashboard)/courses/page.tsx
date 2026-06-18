@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { coursesAPI } from '@/lib/api';
+import { getAdminImageUrl } from '@/lib/image-utils';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Plus, 
@@ -323,7 +324,7 @@ export default function CoursesPage() {
                 <div className="relative h-48 bg-gradient-to-br from-primary/20 via-purple-500/20 to-blue-500/20 overflow-hidden">
                   {course.thumbnail ? (
                     <img 
-                      src={course.thumbnail} 
+                      src={getAdminImageUrl(course.thumbnail)} 
                       alt={course.title}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
