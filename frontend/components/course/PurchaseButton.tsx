@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
 import { paymentsAPI } from '@/lib/api';
+import { getCoursePricing } from '@/lib/course-utils';
 import Link from 'next/link';
 import { ShoppingCart, Check, Shield, Crown, Loader2 } from 'lucide-react';
 
@@ -23,6 +24,7 @@ export default function PurchaseButton({ courseId, course, isEnrolled }: Purchas
   const { toast } = useToast();
   const [adminPurchasing, setAdminPurchasing] = useState(false);
   const isAdmin = user?.role === 'admin';
+  const { finalPrice } = getCoursePricing(course);
 
   const handleAddToCart = () => {
     // Add to cart first (even if user is not logged in)
@@ -39,7 +41,7 @@ export default function PurchaseButton({ courseId, course, isEnrolled }: Purchas
         courseId,
         title: course.title,
         thumbnail: course.thumbnail || '/img/cr1.webp',
-        price: course.price || 0,
+        price: finalPrice,
         description: course.description,
       });
       toast({

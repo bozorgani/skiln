@@ -26,6 +26,7 @@ const courseSchema = new mongoose.Schema(
     description: { type: String, required: true },
     shortDescription: { type: String, maxlength: 200 },
     price: { type: Number, required: true, min: 0 },
+    discountPercent: { type: Number, default: 0, min: 0, max: 100 },
     thumbnail: { type: String },
     teacher: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     sections: [sectionSchema],

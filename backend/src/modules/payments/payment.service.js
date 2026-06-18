@@ -411,7 +411,7 @@ const createPaymentIntent = async (courseId, userId, couponCode = null) => {
     throw new ApiError(400, 'شما قبلاً در این دوره ثبت‌نام کرده‌اید');
   }
 
-  let finalPrice = course.price || 0;
+  let finalPrice = Math.max(0, Math.round((course.price || 0) * (1 - ((course.discountPercent || 0) / 100))));
   let couponApplied = null;
 
   if (couponCode) {
@@ -420,7 +420,7 @@ const createPaymentIntent = async (courseId, userId, couponCode = null) => {
         code: couponCode,
         userId,
         courseId,
-        amount: course.price || 0,
+        amount: finalPrice || 0,
       });
 
       finalPrice = couponResult.finalAmount;

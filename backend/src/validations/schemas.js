@@ -42,6 +42,7 @@ const courseCreate = z.object({
   description: z.string().trim().min(1).max(20000),
   shortDescription: z.string().trim().max(200).optional(),
   price: z.coerce.number().min(0),
+  discountPercent: z.coerce.number().min(0).max(100).optional(),
   thumbnail: z.string().trim().optional(),
   teacher: objectId.optional(),
   sections: z.array(sectionSchema).optional(),

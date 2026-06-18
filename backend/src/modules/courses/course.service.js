@@ -1,7 +1,7 @@
 const ApiError = require('../../core/ApiError');
 const Course = require('./course.model');
 
-const courseProjection = 'title description shortDescription price thumbnail teacher sections students status category level duration ratings createdAt updatedAt _id';
+const courseProjection = 'title description shortDescription price discountPercent thumbnail teacher sections students status category level duration ratings createdAt updatedAt _id';
 
 const createCourse = async (payload) => {
   return Course.create(payload);

@@ -55,3 +55,26 @@ export function calculateTotalLessons(course: any): number {
   return total || course?.lessons?.length || 0;
 }
 
+
+/**
+ * قیمت‌گذاری دوره با پشتیبانی از تخفیف درصدی
+ */
+export function getCoursePricing(course: any): {
+  originalPrice: number;
+  finalPrice: number;
+  discountPercent: number;
+  hasDiscount: boolean;
+} {
+  const originalPrice = Math.max(0, Number(course?.price || 0));
+  const discountPercent = Math.min(100, Math.max(0, Number(course?.discountPercent || 0)));
+  const finalPrice = discountPercent > 0
+    ? Math.max(0, Math.round(originalPrice * (1 - discountPercent / 100)))
+    : originalPrice;
+
+  return {
+    originalPrice,
+    finalPrice,
+    discountPercent,
+    hasDiscount: originalPrice > 0 && discountPercent > 0 && finalPrice < originalPrice,
+  };
+}

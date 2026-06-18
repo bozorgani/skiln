@@ -8,7 +8,7 @@ import ImageWithBlur from './ImageWithBlur';
 import RevealOnScroll from './RevealOnScroll';
 import { cn } from '@/lib/utils';
 import { getImageUrl } from '@/lib/image-utils';
-import { calculateCourseDuration } from '@/lib/course-utils';
+import { calculateCourseDuration, getCoursePricing } from '@/lib/course-utils';
 
 interface AdvancedCourseCardProps {
   course: any;
@@ -17,9 +17,7 @@ interface AdvancedCourseCardProps {
 
 export default function AdvancedCourseCard({ course, index = 0 }: AdvancedCourseCardProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const hasDiscount = course.price > 0 && course.price < 50000;
-  const originalPrice = hasDiscount ? course.price * 1.25 : course.price;
-  const discountPercent = hasDiscount ? 20 : 0;
+  const { originalPrice, finalPrice, discountPercent, hasDiscount } = getCoursePricing(course);
 
   return (
     <RevealOnScroll delay={index * 0.1} direction="up" distance={30}>
@@ -164,11 +162,11 @@ export default function AdvancedCourseCard({ course, index = 0 }: AdvancedCourse
                   "font-black text-2xl transition-colors duration-300",
                   hasDiscount ? 'text-green-500 group-hover:text-green-400' : 'text-primary group-hover:text-indigo-600'
                 )}>
-                  {course.price === 0 ? (
+                  {finalPrice === 0 ? (
                     'رایگان'
                   ) : (
                     <>
-                      {course.price.toLocaleString('fa-IR')}
+                      {finalPrice.toLocaleString('fa-IR')}
                       <span className="text-sm font-bold mr-1">تومان</span>
                     </>
                   )}

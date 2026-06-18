@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { getImageUrl } from '@/lib/image-utils';
+import { getCoursePricing } from '@/lib/course-utils';
 import { Card } from '@/components/ui/card';
 import { Star, ChevronRight, ChevronLeft, Users } from 'lucide-react';
 
@@ -33,8 +34,6 @@ export default function CourseCarouselSection({
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
-  if (courses.length === 0) return null;
-
   const checkScrollability = () => {
     if (!scrollContainerRef.current) return;
     const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
@@ -54,6 +53,8 @@ export default function CourseCarouselSection({
       };
     }
   }, [courses]);
+
+  if (courses.length === 0) return null;
 
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollContainerRef.current) return;
@@ -139,10 +140,7 @@ export default function CourseCarouselSection({
 }
 
 function CourseCarouselCard({ course }: { course: any }) {
-  // Calculate discount if price is less than a threshold
-  const hasDiscount = course.price > 0 && course.price < 50000;
-  const originalPrice = hasDiscount ? course.price * 1.25 : course.price; // Assuming 20% discount
-  const discountPercent = hasDiscount ? 20 : 0;
+  const { originalPrice, finalPrice, discountPercent, hasDiscount } = getCoursePricing(course);
 
   return (
     <div className="min-w-[280px] sm:min-w-[320px] md:min-w-[360px] flex-shrink-0">
@@ -227,11 +225,11 @@ function CourseCarouselCard({ course }: { course: any }) {
                   </span>
                 )}
                 <span className={`${hasDiscount ? 'text-green-500' : 'text-foreground'} font-bold text-lg`}>
-                  {course.price === 0 ? (
+                  {finalPrice === 0 ? (
                     'رایگان'
                   ) : (
                     <>
-                      {course.price.toLocaleString('fa-IR')}
+                      {finalPrice.toLocaleString('fa-IR')}
                       <span className="font-medium text-base mr-1">تومان</span>
                     </>
                   )}

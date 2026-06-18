@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import api, { coursesAPI } from '@/lib/api';
+import api, { coursesAPI, categoriesAPI } from '@/lib/api';
 import { 
   ArrowRight, 
   ArrowLeft,
@@ -38,13 +38,15 @@ export default function NewCoursePage() {
   const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
   const [uploadingLesson, setUploadingLesson] = useState<{ sectionIndex: number; lessonIndex: number } | null>(null);
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
-  const [thumbnailPreview, setThumbnailPreview] = useState<string>(''); // برای نمایش پیش‌نمایش موقت
+  const [thumbnailPreview, setThumbnailPreview] = useState<string>('');
+  const [categories, setCategories] = useState<any[]>([]); // برای نمایش پیش‌نمایش موقت
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     shortDescription: '',
     thumbnail: '', // فقط URL سرور
     price: '',
+    discountPercent: '',
     category: 'General',
     level: 'Beginner',
     duration: '',
@@ -61,6 +63,12 @@ export default function NewCoursePage() {
       }>;
     }>,
   });
+
+  useEffect(() => {
+    categoriesAPI.getAll({ type: 'course', includeInactive: true })
+      .then((response) => setCategories(response.data?.data?.categories || []))
+      .catch(() => setCategories([]));
+  }, []);
 
   // پاکسازی data URI های قدیمی هر زمان که thumbnail تغییر می‌کند
   useEffect(() => {
@@ -240,6 +248,10 @@ export default function NewCoursePage() {
       // فرمت با کاما (سه رقم سه رقم) با ارقام فارسی
       const formatted = numValue.toLocaleString('fa-IR');
       setFormData(prev => ({ ...prev, price: formatted }));
+    } else if (name === 'discountPercent') {
+      const raw = value.replace(/[^\d]/g, '');
+      const nextValue = raw ? Math.min(100, Math.max(0, parseInt(raw, 10))).toString() : '';
+      setFormData(prev => ({ ...prev, discountPercent: nextValue }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
@@ -273,7 +285,7 @@ export default function NewCoursePage() {
       return false;
     }
     const numericPrice = parsePriceToNumber(formData.price);
-    if (!numericPrice || numericPrice < 0) {
+    if (numericPrice < 0) {
       toast({
         variant: 'destructive',
         title: 'خطا',
@@ -335,7 +347,7 @@ export default function NewCoursePage() {
       return;
     }
     const numericPrice = parsePriceToNumber(formData.price);
-    if (!numericPrice || numericPrice < 0) {
+    if (numericPrice < 0) {
       toast({
         variant: 'destructive',
         title: 'خطا',
@@ -357,6 +369,7 @@ export default function NewCoursePage() {
         description: formData.description,
         shortDescription: formData.shortDescription || '',
         price: numericPrice,
+        discountPercent: formData.discountPercent ? Number(formData.discountPercent) : 0,
         thumbnail: thumbnailUrl,
         category: formData.category || 'General',
         level: formData.level || 'Beginner',
@@ -368,8 +381,8 @@ export default function NewCoursePage() {
       const response = await coursesAPI.create(courseData);
       
       if (response.data?.success) {
-        alert('دوره با موفقیت ایجاد شد');
-        router.push('/courses');
+        toast({ variant: 'success', title: 'دوره ایجاد شد', description: 'دوره با موفقیت ثبت شد' });
+        setTimeout(() => router.push('/courses'), 1200);
       } else {
         throw new Error(response.data?.message || 'خطا در ایجاد دوره');
       }
@@ -390,7 +403,7 @@ export default function NewCoursePage() {
         errorMessage = error.message;
       }
       
-      alert(errorMessage);
+      toast({ variant: 'destructive', title: 'خطا', description: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -706,15 +719,31 @@ export default function NewCoursePage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="category" className="text-sm font-semibold">دسته‌بندی</Label>
+                <Label htmlFor="discountPercent" className="text-sm font-semibold">درصد تخفیف</Label>
                 <Input
+                  id="discountPercent"
+                  name="discountPercent"
+                  value={formData.discountPercent}
+                  onChange={handleChange}
+                  placeholder="مثلاً ۲۰"
+                  className="h-12"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="category" className="text-sm font-semibold">دسته‌بندی</Label>
+                <select
                   id="category"
                   name="category"
                   value={formData.category}
                   onChange={handleChange}
-                  placeholder="General"
-                  className="h-12"
-                />
+                  className="flex h-12 w-full rounded-xl border border-input bg-background px-4 py-2 text-sm"
+                >
+                  <option value="General">عمومی</option>
+                  {categories.map((category) => (
+                    <option key={category._id || category.slug} value={category.name}>{category.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-2">

@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import PurchaseButton from '@/components/course/PurchaseButton';
 import { Clock, Users, BookOpen, Play, Lock, CheckCircle2, Award, Globe, TrendingUp, Star, User as UserIcon, ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
 import { getImageUrl } from '@/lib/image-utils';
-import { calculateCourseDuration, calculateTotalLessons } from '@/lib/course-utils';
+import { calculateCourseDuration, calculateTotalLessons, getCoursePricing } from '@/lib/course-utils';
 import DescriptionBox from '@/components/course/DescriptionBox';
 import FAQSection from '@/components/course/FAQSection';
 import CourseReviews from '@/components/course/CourseReviews';
@@ -213,6 +213,7 @@ export default async function CourseDetailPage({
   // محاسبه مدت زمان و تعداد درس‌ها از sections
   const courseDuration = calculateCourseDuration(course);
   const totalLessons = calculateTotalLessons(course) || lessons.length || 0;
+  const { originalPrice, finalPrice, discountPercent, hasDiscount } = getCoursePricing(course);
   // شمارش درس‌های رایگان (isFree یا isPreview)
   const previewLessons = course.sections?.reduce((count: number, section: any) => {
     const sectionFree = section.isFree || false;
@@ -248,7 +249,7 @@ export default async function CourseDetailPage({
       : undefined,
     offers: {
       '@type': 'Offer',
-      price: course.price || 0,
+      price: finalPrice,
       priceCurrency: 'IRR',
       availability: 'https://schema.org/InStock',
       url: `https://www.skiln.ir/courses/${id}`,
@@ -669,15 +670,23 @@ export default async function CourseDetailPage({
               <Card className="border-2 shadow-xl">
                 <CardHeader className="pb-4 border-b">
                   <div className="flex items-baseline gap-2">
-                    {course.price === 0 ? (
+                    {finalPrice === 0 ? (
                       <CardTitle className="text-2xl md:text-3xl font-bold text-primary">رایگان</CardTitle>
                     ) : (
-                      <>
-                        <CardTitle className="text-2xl md:text-3xl font-bold">
-                          {course.price.toLocaleString('fa-IR')}
-                        </CardTitle>
-                        <span className="text-base text-muted-foreground">تومان</span>
-                      </>
+                      <div className="space-y-1">
+                        {hasDiscount && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground line-through">{originalPrice.toLocaleString('fa-IR')} تومان</span>
+                            <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 text-xs font-bold">{discountPercent}% تخفیف</span>
+                          </div>
+                        )}
+                        <div className="flex items-baseline gap-2">
+                          <CardTitle className="text-2xl md:text-3xl font-bold">
+                            {finalPrice.toLocaleString('fa-IR')}
+                          </CardTitle>
+                          <span className="text-base text-muted-foreground">تومان</span>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </CardHeader>

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import api, { coursesAPI } from '@/lib/api';
+import api, { coursesAPI, categoriesAPI } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { 
   ArrowRight, 
@@ -38,12 +38,14 @@ export default function EditCoursePage() {
   const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
   const [uploadingLesson, setUploadingLesson] = useState<{ sectionIndex: number; lessonIndex: number } | null>(null);
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     shortDescription: '',
     thumbnail: '',
     price: '',
+    discountPercent: '',
     category: 'General',
     level: 'Beginner',
     duration: '',
@@ -100,6 +102,12 @@ export default function EditCoursePage() {
     }
   }, [courseId]);
 
+  useEffect(() => {
+    categoriesAPI.getAll({ type: 'course', includeInactive: true })
+      .then((response) => setCategories(response.data?.data?.categories || []))
+      .catch(() => setCategories([]));
+  }, []);
+
   const loadCourse = async () => {
     try {
       setLoadingCourse(true);
@@ -151,6 +159,7 @@ export default function EditCoursePage() {
           shortDescription: shortDescriptionValue,
           thumbnail: thumbnailValue,
           price: priceValue ? Number(priceValue).toLocaleString('fa-IR') : '0',
+          discountPercent: course.discountPercent ? String(course.discountPercent) : '',
           category: course.category || 'General',
           level: course.level || 'Beginner',
           duration: course.duration?.toString() || '',
@@ -288,6 +297,10 @@ export default function EditCoursePage() {
       // فرمت با کاما (سه رقم سه رقم) با ارقام فارسی
       const formatted = numValue.toLocaleString('fa-IR');
       setFormData(prev => ({ ...prev, price: formatted }));
+    } else if (name === 'discountPercent') {
+      const raw = value.replace(/[^\d]/g, '');
+      const nextValue = raw ? Math.min(100, Math.max(0, parseInt(raw, 10))).toString() : '';
+      setFormData(prev => ({ ...prev, discountPercent: nextValue }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
@@ -320,7 +333,7 @@ export default function EditCoursePage() {
       return false;
     }
     const numericPrice = parsePriceToNumber(formData.price);
-    if (!numericPrice || numericPrice < 0) {
+    if (numericPrice < 0) {
       toast({
         variant: 'destructive',
         title: 'خطا',
@@ -381,7 +394,7 @@ export default function EditCoursePage() {
       return;
     }
     const numericPrice = parsePriceToNumber(formData.price);
-    if (!numericPrice || numericPrice < 0) {
+    if (numericPrice < 0) {
       toast({
         variant: 'destructive',
         title: 'خطا در اعتبارسنجی',
@@ -397,6 +410,7 @@ export default function EditCoursePage() {
         description: formData.description,
         shortDescription: formData.shortDescription || '',
         price: numericPrice,
+        discountPercent: formData.discountPercent ? Number(formData.discountPercent) : 0,
         thumbnail: formData.thumbnail,
         category: formData.category || 'General',
         level: formData.level || 'Beginner',
@@ -773,15 +787,31 @@ export default function EditCoursePage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="category" className="text-sm font-semibold">دسته‌بندی</Label>
+                <Label htmlFor="discountPercent" className="text-sm font-semibold">درصد تخفیف</Label>
                 <Input
+                  id="discountPercent"
+                  name="discountPercent"
+                  value={formData.discountPercent}
+                  onChange={handleChange}
+                  placeholder="مثلاً ۲۰"
+                  className="h-12"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="category" className="text-sm font-semibold">دسته‌بندی</Label>
+                <select
                   id="category"
                   name="category"
                   value={formData.category}
                   onChange={handleChange}
-                  placeholder="General"
-                  className="h-12"
-                />
+                  className="flex h-12 w-full rounded-xl border border-input bg-background px-4 py-2 text-sm"
+                >
+                  <option value="General">عمومی</option>
+                  {categories.map((category) => (
+                    <option key={category._id || category.slug} value={category.name}>{category.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-2">
