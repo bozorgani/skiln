@@ -82,9 +82,11 @@ const getMyCourses = async (userId) => {
         progress: {
           totalLessons,
           completedLessons: progress.completedLessons || [],
+          lessonProgress: progress.lessonProgress || [],
           percentage: progress.completionPercentage || 0,
           completionPercentage: progress.completionPercentage || 0,
           lastWatchedLesson: progress.lastWatchedLesson,
+          lastAccessed: progress.lastAccessed,
           updatedAt: progress.updatedAt,
           certificateIssued: progress.certificateIssued || false,
         },
@@ -212,8 +214,10 @@ const getEnrollment = async (courseId, userId) => {
       progressData = {
         totalLessons: progress.totalLessons,
         completedLessons: progress.completedLessons || [],
+        lessonProgress: progress.lessonProgress || [],
         completionPercentage: progress.completionPercentage || 0,
         lastWatchedLesson: progress.lastWatchedLesson,
+        lastAccessed: progress.lastAccessed,
         completedAt: progress.completedAt,
         certificateIssued: progress.certificateIssued || false,
       };
@@ -250,9 +254,8 @@ const getEnrollment = async (courseId, userId) => {
  * Update progress for a course
  * This now uses the Progress model for proper tracking
  */
-const updateProgress = async (courseId, userId, lessonId, completed) => {
-  // Delegate to progress service
-  return await progressService.updateProgress(courseId, userId, lessonId, completed);
+const updateProgress = async (courseId, userId, lessonId, completed, meta = {}) => {
+  return progressService.updateProgress(courseId, userId, lessonId, completed, meta);
 };
 
 module.exports = {

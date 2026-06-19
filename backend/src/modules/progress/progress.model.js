@@ -1,5 +1,17 @@
 const mongoose = require('mongoose');
 
+const lessonProgressSchema = new mongoose.Schema(
+  {
+    lessonId: { type: String, required: true },
+    completed: { type: Boolean, default: false },
+    completedAt: Date,
+    watchedPercentage: { type: Number, default: 0, min: 0, max: 100 },
+    lastWatchedSeconds: { type: Number, default: 0, min: 0 },
+    lastAccessedAt: Date,
+  },
+  { _id: false }
+);
+
 const progressSchema = new mongoose.Schema(
   {
     user: {
@@ -13,10 +25,17 @@ const progressSchema = new mongoose.Schema(
       required: true,
     },
     completedLessons: [{
-      type: String, // lessonId (virtual ID: courseId-sectionIndex-lessonIndex)
+      type: String,
     }],
+    lessonProgress: [lessonProgressSchema],
     lastWatchedLesson: {
-      type: String, // lessonId of the last watched lesson
+      type: String,
+    },
+    lastAccessed: Date,
+    totalLessons: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     completionPercentage: {
       type: Number,
@@ -24,9 +43,8 @@ const progressSchema = new mongoose.Schema(
       min: 0,
       max: 100,
     },
-    completedAt: {
-      type: Date, // تاریخ تکمیل دوره (زمانی که 100% شود)
-    },
+    startedAt: Date,
+    completedAt: Date,
     certificateIssued: {
       type: Boolean,
       default: false,
@@ -35,17 +53,10 @@ const progressSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Index برای جستجوی سریع
 progressSchema.index({ user: 1, course: 1 }, { unique: true });
 progressSchema.index({ user: 1 });
+progressSchema.index({ course: 1 });
 
 const Progress = mongoose.model('Progress', progressSchema);
 
 module.exports = Progress;
-
-
-
-
-
-
-

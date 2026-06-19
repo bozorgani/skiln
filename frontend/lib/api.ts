@@ -136,15 +136,15 @@ export const enrollmentsAPI = {
   getMyCourses: () => api.get('/enrollments/my-courses'),
   enroll: (courseId: string) => api.post(`/enrollments/${courseId}`),
   getEnrollment: (courseId: string) => api.get(`/enrollments/${courseId}`),
-  updateProgress: (courseId: string, lessonId: string, completed: boolean) =>
-    api.put(`/enrollments/${courseId}/progress`, { lessonId, completed }),
+  updateProgress: (courseId: string, lessonId: string, completed?: boolean, meta?: { watchedPercentage?: number; lastWatchedSeconds?: number }) =>
+    api.put(`/enrollments/${courseId}/progress`, { lessonId, completed, ...meta }),
 };
 
 // Progress API
 export const progressAPI = {
   getProgress: (courseId: string) => api.get(`/progress/${courseId}`),
-  updateProgress: (courseId: string, lessonId: string, completed: boolean) =>
-    api.put(`/progress/${courseId}`, { lessonId, completed }),
+  updateProgress: (courseId: string, lessonId: string, completed?: boolean, meta?: { watchedPercentage?: number; lastWatchedSeconds?: number }) =>
+    api.put(`/progress/${courseId}`, { lessonId, completed, ...meta }),
 };
 
 // Certificates API

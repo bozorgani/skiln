@@ -34,13 +34,13 @@ exports.getEnrollment = catchAsync(async (req, res) => {
 exports.updateProgress = catchAsync(async (req, res) => {
   const userId = req.user._id;
   const courseId = req.params.courseId;
-  const { lessonId, completed } = req.body;
+  const { lessonId, completed, watchedPercentage, lastWatchedSeconds } = req.body;
   
   if (!lessonId) {
     throw new Error('lessonId is required');
   }
   
-  const progress = await enrollmentService.updateProgress(courseId, userId, lessonId, completed !== false);
+  const progress = await enrollmentService.updateProgress(courseId, userId, lessonId, typeof completed === 'boolean' ? completed : undefined, { watchedPercentage, lastWatchedSeconds, trackOnly: typeof completed !== 'boolean' });
   sendResponse(res, {
     message: 'پیشرفت با موفقیت به‌روزرسانی شد',
     data: progress,

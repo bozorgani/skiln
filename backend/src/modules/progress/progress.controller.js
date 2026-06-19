@@ -5,7 +5,7 @@ const progressService = require('./progress.service');
 exports.updateProgress = catchAsync(async (req, res) => {
   const { courseId } = req.params;
   const userId = req.user._id;
-  const { lessonId, completed } = req.body;
+  const { lessonId, completed, watchedPercentage, lastWatchedSeconds } = req.body;
 
   if (!lessonId) {
     throw new Error('lessonId is required');
@@ -15,7 +15,8 @@ exports.updateProgress = catchAsync(async (req, res) => {
     courseId,
     userId,
     lessonId,
-    completed !== false // default to true if not specified
+    typeof completed === 'boolean' ? completed : undefined,
+    { watchedPercentage, lastWatchedSeconds, trackOnly: typeof completed !== 'boolean' }
   );
 
   sendResponse(res, {

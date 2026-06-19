@@ -3,145 +3,200 @@ const Progress = require('./progress.model');
 const Course = require('../courses/course.model');
 const Certificate = require('../certificates/certificate.model');
 
-/**
- * Get or create progress for a user in a course
- */
+const getCourseLessonIds = (course) => {
+  const ids = [];
+  (course.sections || []).forEach((section, sectionIndex) => {
+    (section.lessons || []).forEach((_lesson, lessonIndex) => {
+      ids.push(`${course._id}-${sectionIndex}-${lessonIndex}`);
+    });
+  });
+  return ids;
+};
+
+const normalizeLessonId = (course, lessonId) => {
+  const raw = String(lessonId || '');
+  if (!raw) return raw;
+
+  const courseId = course._id.toString();
+  if (raw.startsWith(`${courseId}-`)) return raw;
+
+  const twoPart = /^(\d+)-(\d+)$/.exec(raw);
+  if (twoPart) return `${courseId}-${twoPart[1]}-${twoPart[2]}`;
+
+  const numeric = /^(\d+)$/.exec(raw);
+  if (numeric) {
+    const index = Number(numeric[1]) - 1;
+    let counter = 0;
+    for (let sectionIndex = 0; sectionIndex < (course.sections || []).length; sectionIndex += 1) {
+      for (let lessonIndex = 0; lessonIndex < (course.sections[sectionIndex].lessons || []).length; lessonIndex += 1) {
+        if (counter === index) return `${courseId}-${sectionIndex}-${lessonIndex}`;
+        counter += 1;
+      }
+    }
+  }
+
+  return raw;
+};
+
+const isEnrolled = (course, userId) => {
+  return (course.students || []).some((studentId) => studentId.toString() === userId.toString());
+};
+
 const getOrCreateProgress = async (courseId, userId) => {
   let progress = await Progress.findOne({ user: userId, course: courseId });
-  
+
   if (!progress) {
-    // Create new progress
     progress = await Progress.create({
       user: userId,
       course: courseId,
       completedLessons: [],
+      lessonProgress: [],
       completionPercentage: 0,
+      startedAt: new Date(),
+      lastAccessed: new Date(),
     });
   }
-  
+
   return progress;
 };
 
-/**
- * Update progress for a course
- */
-const updateProgress = async (courseId, userId, lessonId, completed) => {
-  const course = await Course.findById(courseId);
-  
-  if (!course) {
-    throw new ApiError(404, 'دوره یافت نشد');
-  }
+const recalculateProgress = async (course, progress) => {
+  const validLessonIds = getCourseLessonIds(course);
+  const validSet = new Set(validLessonIds);
 
-  // Check if user is enrolled
-  const isEnrolled = course.students.some(
-    (studentId) => studentId.toString() === userId.toString()
-  );
+  const completedFromLegacy = (progress.completedLessons || [])
+    .map((lessonId) => normalizeLessonId(course, lessonId))
+    .filter((lessonId) => validSet.has(lessonId));
 
-  if (!isEnrolled) {
-    throw new ApiError(403, 'شما در این دوره ثبت‌نام نکرده‌اید');
-  }
+  const completedFromDetails = (progress.lessonProgress || [])
+    .filter((item) => item.completed)
+    .map((item) => normalizeLessonId(course, item.lessonId))
+    .filter((lessonId) => validSet.has(lessonId));
 
-  // Get or create progress
-  const progress = await getOrCreateProgress(courseId, userId);
+  const completedLessons = Array.from(new Set([...completedFromLegacy, ...completedFromDetails]));
 
-  if (completed) {
-    // Add lesson to completed lessons if not already there
-    if (!progress.completedLessons.includes(lessonId)) {
-      progress.completedLessons.push(lessonId);
-      progress.lastWatchedLesson = lessonId;
-    }
-  } else {
-    // Remove lesson from completed lessons
-    progress.completedLessons = progress.completedLessons.filter(
-      (id) => id.toString() !== lessonId.toString()
-    );
-  }
-
-  // Calculate total lessons
-  const totalLessons = course.sections.reduce(
-    (sum, section) => sum + (section.lessons?.length || 0),
-    0
-  );
-
-  // Calculate completion percentage
-  const completedCount = progress.completedLessons.length;
-  progress.completionPercentage = totalLessons > 0 
-    ? Math.round((completedCount / totalLessons) * 100) 
+  progress.totalLessons = validLessonIds.length;
+  progress.completedLessons = completedLessons;
+  progress.completionPercentage = validLessonIds.length > 0
+    ? Math.min(100, Math.round((completedLessons.length / validLessonIds.length) * 100))
     : 0;
 
-  // If 100% completed, set completedAt
-  if (progress.completionPercentage === 100 && !progress.completedAt) {
-    progress.completedAt = new Date();
-    
-    // Issue certificate if not already issued
+  if (!progress.startedAt) progress.startedAt = progress.createdAt || new Date();
+
+  if (progress.completionPercentage === 100) {
+    if (!progress.completedAt) progress.completedAt = new Date();
     if (!progress.certificateIssued) {
-      await issueCertificate(courseId, userId, progress);
+      await issueCertificate(course._id, progress.user, progress);
       progress.certificateIssued = true;
     }
-  } else if (progress.completionPercentage < 100) {
+  } else {
     progress.completedAt = null;
     progress.certificateIssued = false;
   }
 
-  await progress.save();
-
-  return {
-    courseId,
-    lessonId,
-    completed,
-    progress: {
-      completedLessons: progress.completedLessons,
-      completionPercentage: progress.completionPercentage,
-      totalLessons,
-      certificateIssued: progress.certificateIssued,
-    },
-  };
+  return progress;
 };
 
-/**
- * Get progress for a course
- */
-const getProgress = async (courseId, userId) => {
-  const course = await Course.findById(courseId);
-  
-  if (!course) {
-    throw new ApiError(404, 'دوره یافت نشد');
+const updateLessonDetail = (progress, lessonId, completed, meta = {}) => {
+  const now = new Date();
+  const watchedPercentage = Math.min(100, Math.max(0, Number(meta.watchedPercentage || (completed ? 100 : 0))));
+  const lastWatchedSeconds = Math.max(0, Number(meta.lastWatchedSeconds || 0));
+
+  const details = progress.lessonProgress || [];
+  const existing = details.find((item) => item.lessonId === lessonId);
+
+  if (existing) {
+    existing.completed = completed;
+    existing.completedAt = completed ? (existing.completedAt || now) : undefined;
+    existing.watchedPercentage = Math.max(existing.watchedPercentage || 0, watchedPercentage);
+    existing.lastWatchedSeconds = Math.max(existing.lastWatchedSeconds || 0, lastWatchedSeconds);
+    existing.lastAccessedAt = now;
+  } else {
+    details.push({
+      lessonId,
+      completed: typeof completed === 'boolean' ? completed : null,
+      completedAt: completed ? now : undefined,
+      watchedPercentage,
+      lastWatchedSeconds,
+      lastAccessedAt: now,
+    });
   }
 
-  // Check if user is enrolled
-  const isEnrolled = course.students.some(
-    (studentId) => studentId.toString() === userId.toString()
-  );
+  progress.lessonProgress = details;
+};
 
-  if (!isEnrolled) {
-    return null; // Return null if not enrolled (not an error)
+const updateProgress = async (courseId, userId, lessonId, completed, meta = {}) => {
+  const course = await Course.findById(courseId);
+  if (!course) throw new ApiError(404, 'دوره یافت نشد');
+  if (!isEnrolled(course, userId)) throw new ApiError(403, 'شما در این دوره ثبت‌نام نکرده‌اید');
+
+  const normalizedLessonId = normalizeLessonId(course, lessonId);
+  const validLessonIds = getCourseLessonIds(course);
+  if (!validLessonIds.includes(normalizedLessonId)) {
+    throw new ApiError(400, 'شناسه درس نامعتبر است');
   }
 
   const progress = await getOrCreateProgress(courseId, userId);
-  
-  // Calculate total lessons
-  const totalLessons = course.sections.reduce(
-    (sum, section) => sum + (section.lessons?.length || 0),
-    0
-  );
+  progress.lastWatchedLesson = normalizedLessonId;
+  progress.lastAccessed = new Date();
+  if (!progress.startedAt) progress.startedAt = new Date();
 
-  const recalculatedPercentage = totalLessons > 0
-    ? Math.round(((progress.completedLessons || []).length / totalLessons) * 100)
-    : 0;
+  const isCompletionUpdate = typeof completed === 'boolean';
+  updateLessonDetail(progress, normalizedLessonId, completed === true, meta);
 
-  if (progress.completionPercentage !== recalculatedPercentage) {
-    progress.completionPercentage = recalculatedPercentage;
-    await progress.save();
+  if (completed === true) {
+    if (!progress.completedLessons.map(String).includes(normalizedLessonId)) {
+      progress.completedLessons.push(normalizedLessonId);
+    }
+  } else if (completed === false && !meta.trackOnly) {
+    progress.completedLessons = (progress.completedLessons || []).filter(
+      (id) => normalizeLessonId(course, id) !== normalizedLessonId
+    );
   }
 
-  // Get certificate if exists
+  await recalculateProgress(course, progress);
+  await progress.save();
+
+  return buildProgressResponse(course, progress, normalizedLessonId, completed);
+};
+
+const buildProgressResponse = (course, progress, lessonId = null, completed = null) => ({
+  courseId: course._id,
+  lessonId,
+  completed,
+  progress: {
+    completedLessons: progress.completedLessons || [],
+    lessonProgress: progress.lessonProgress || [],
+    completionPercentage: progress.completionPercentage || 0,
+    totalLessons: progress.totalLessons || getCourseLessonIds(course).length,
+    lastWatchedLesson: progress.lastWatchedLesson,
+    lastAccessed: progress.lastAccessed,
+    startedAt: progress.startedAt,
+    completedAt: progress.completedAt,
+    certificateIssued: progress.certificateIssued || false,
+  },
+});
+
+const getProgress = async (courseId, userId) => {
+  const course = await Course.findById(courseId);
+  if (!course) throw new ApiError(404, 'دوره یافت نشد');
+  if (!isEnrolled(course, userId)) return null;
+
+  const progress = await getOrCreateProgress(courseId, userId);
+  progress.lastAccessed = progress.lastAccessed || new Date();
+  await recalculateProgress(course, progress);
+  await progress.save();
+
   const certificate = await Certificate.findOne({ user: userId, course: courseId });
 
   return {
     completedLessons: progress.completedLessons || [],
-    totalLessons,
+    lessonProgress: progress.lessonProgress || [],
+    totalLessons: progress.totalLessons || getCourseLessonIds(course).length,
     completionPercentage: progress.completionPercentage || 0,
     lastWatchedLesson: progress.lastWatchedLesson,
+    lastAccessed: progress.lastAccessed,
+    startedAt: progress.startedAt,
     completedAt: progress.completedAt,
     certificateIssued: progress.certificateIssued || false,
     certificate: certificate ? {
@@ -151,31 +206,21 @@ const getProgress = async (courseId, userId) => {
   };
 };
 
-/**
- * Issue certificate for completed course
- */
 const issueCertificate = async (courseId, userId, progress) => {
-  // Check if certificate already exists
   const existingCertificate = await Certificate.findOne({ user: userId, course: courseId });
-  if (existingCertificate) {
-    return existingCertificate;
-  }
+  if (existingCertificate) return existingCertificate;
 
-  // Generate certificate number
   const timestamp = Date.now();
   const random = Math.floor(Math.random() * 10000);
   const certificateNumber = `CERT-${timestamp}-${random}`;
 
-  // Create certificate
-  const certificate = await Certificate.create({
+  return Certificate.create({
     user: userId,
     course: courseId,
     progress: progress._id,
     certificateNumber,
     completedAt: progress.completedAt || new Date(),
   });
-
-  return certificate;
 };
 
 module.exports = {
@@ -183,11 +228,7 @@ module.exports = {
   updateProgress,
   getProgress,
   issueCertificate,
+  recalculateProgress,
+  normalizeLessonId,
+  getCourseLessonIds,
 };
-
-
-
-
-
-
-

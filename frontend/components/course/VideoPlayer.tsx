@@ -38,10 +38,12 @@ export default function VideoPlayer({
   const { toast } = useToast();
   const router = useRouter();
   const [completed, setCompleted] = useState(false);
+  const [localProgress, setLocalProgress] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [player, setPlayer] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
   const hasNavigated = useRef(false); // برای جلوگیری از navigate چندباره
+  const lastProgressSync = useRef(0);
 
   // Mount effect - only run on client
   useEffect(() => {
@@ -59,14 +61,28 @@ export default function VideoPlayer({
     hasNavigated.current = false;
   }, [enrollment, lessonId]);
 
-  const handleProgress = async (progress: { played: number }) => {
-    // Don't track progress for admins
-    if (isAdmin) return;
+  const handleProgress = async (progress: { played: number; playedSeconds?: number }) => {
+    if (isAdmin || !enrollment) return;
+
+    const watchedPercentage = Math.round((progress.played || 0) * 100);
+    setLocalProgress((previous) => Math.max(previous, watchedPercentage));
+
+    const now = Date.now();
+    if (!completed && watchedPercentage > 0 && now - lastProgressSync.current > 15000) {
+      lastProgressSync.current = now;
+      progressAPI.updateProgress(courseId, lessonId, undefined, {
+        watchedPercentage,
+        lastWatchedSeconds: Math.round(progress.playedSeconds || 0),
+      }).catch(() => undefined);
+    }
     
     // Mark as completed when 90% watched
-    if (progress.played >= 0.9 && !completed && enrollment && !hasNavigated.current) {
+    if (watchedPercentage >= 90 && !completed && !hasNavigated.current) {
       try {
-        await progressAPI.updateProgress(courseId, lessonId, true);
+        await progressAPI.updateProgress(courseId, lessonId, true, {
+          watchedPercentage: 100,
+          lastWatchedSeconds: Math.round(progress.playedSeconds || 0),
+        });
         setCompleted(true);
         
         // Check if we can navigate to next lesson
@@ -136,6 +152,11 @@ export default function VideoPlayer({
   
   return (
     <div className="relative w-full h-full">
+      {!isAdmin && enrollment && !completed && localProgress > 0 && (
+        <div className="absolute top-0 right-0 left-0 z-20 h-1 bg-black/30">
+          <div className="h-full bg-primary transition-all" style={{ width: `${localProgress}%` }} />
+        </div>
+      )}
       <div className="w-full h-full bg-black">
         {mounted ? (
           videoUrl ? (
