@@ -68,7 +68,7 @@ export default function VideoPlayer({
     setLocalProgress((previous) => Math.max(previous, watchedPercentage));
 
     const now = Date.now();
-    if (!completed && watchedPercentage > 0 && now - lastProgressSync.current > 15000) {
+    if (!completed && watchedPercentage > 0 && now - lastProgressSync.current > 5000) {
       lastProgressSync.current = now;
       progressAPI.updateProgress(courseId, lessonId, undefined, {
         watchedPercentage,
@@ -168,6 +168,16 @@ export default function VideoPlayer({
               controls
               playbackRate={playbackRate}
               onProgress={handleProgress}
+              onEnded={() => {
+                if (!isAdmin && enrollment && !completed) {
+                  progressAPI.updateProgress(courseId, lessonId, true, {
+                    watchedPercentage: 100,
+                  }).then(() => {
+                    setCompleted(true);
+                    setLocalProgress(100);
+                  }).catch(() => undefined);
+                }
+              }}
               onError={(error: any) => {
                 toast({
                   title: 'خطا در پخش ویدیو',

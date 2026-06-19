@@ -74,11 +74,28 @@ const recalculateProgress = async (course, progress) => {
     .filter((lessonId) => validSet.has(lessonId));
 
   const completedLessons = Array.from(new Set([...completedFromLegacy, ...completedFromDetails]));
+  const watchedByLesson = new Map();
+
+  (progress.lessonProgress || []).forEach((item) => {
+    const lessonId = normalizeLessonId(course, item.lessonId);
+    if (!validSet.has(lessonId)) return;
+    const watched = item.completed
+      ? 100
+      : Math.min(100, Math.max(0, Number(item.watchedPercentage || 0)));
+    watchedByLesson.set(lessonId, Math.max(watchedByLesson.get(lessonId) || 0, watched));
+  });
+
+  completedLessons.forEach((lessonId) => watchedByLesson.set(lessonId, 100));
+
+  const watchedSum = validLessonIds.reduce(
+    (sum, lessonId) => sum + Math.min(100, Math.max(0, watchedByLesson.get(lessonId) || 0)),
+    0
+  );
 
   progress.totalLessons = validLessonIds.length;
   progress.completedLessons = completedLessons;
   progress.completionPercentage = validLessonIds.length > 0
-    ? Math.min(100, Math.round((completedLessons.length / validLessonIds.length) * 100))
+    ? Math.min(100, Math.round(watchedSum / validLessonIds.length))
     : 0;
 
   if (!progress.startedAt) progress.startedAt = progress.createdAt || new Date();
@@ -99,6 +116,7 @@ const recalculateProgress = async (course, progress) => {
 
 const updateLessonDetail = (progress, lessonId, completed, meta = {}) => {
   const now = new Date();
+  const hasCompletionState = typeof completed === 'boolean';
   const watchedPercentage = Math.min(100, Math.max(0, Number(meta.watchedPercentage || (completed ? 100 : 0))));
   const lastWatchedSeconds = Math.max(0, Number(meta.lastWatchedSeconds || 0));
 
@@ -106,15 +124,17 @@ const updateLessonDetail = (progress, lessonId, completed, meta = {}) => {
   const existing = details.find((item) => item.lessonId === lessonId);
 
   if (existing) {
-    existing.completed = completed;
-    existing.completedAt = completed ? (existing.completedAt || now) : undefined;
+    if (hasCompletionState) {
+      existing.completed = completed;
+      existing.completedAt = completed ? (existing.completedAt || now) : undefined;
+    }
     existing.watchedPercentage = Math.max(existing.watchedPercentage || 0, watchedPercentage);
     existing.lastWatchedSeconds = Math.max(existing.lastWatchedSeconds || 0, lastWatchedSeconds);
     existing.lastAccessedAt = now;
   } else {
     details.push({
       lessonId,
-      completed: typeof completed === 'boolean' ? completed : null,
+      completed: completed === true,
       completedAt: completed ? now : undefined,
       watchedPercentage,
       lastWatchedSeconds,
@@ -141,8 +161,7 @@ const updateProgress = async (courseId, userId, lessonId, completed, meta = {}) 
   progress.lastAccessed = new Date();
   if (!progress.startedAt) progress.startedAt = new Date();
 
-  const isCompletionUpdate = typeof completed === 'boolean';
-  updateLessonDetail(progress, normalizedLessonId, completed === true, meta);
+  updateLessonDetail(progress, normalizedLessonId, completed, meta);
 
   if (completed === true) {
     if (!progress.completedLessons.map(String).includes(normalizedLessonId)) {

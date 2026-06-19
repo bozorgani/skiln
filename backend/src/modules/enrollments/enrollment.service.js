@@ -45,14 +45,15 @@ const getMyCourses = async (userId) => {
         0
       );
 
-      const progress = await progressService.getOrCreateProgress(course._id, userId);
-      if (progress.totalLessons !== totalLessons) {
-        progress.totalLessons = totalLessons;
-      }
-      progress.completionPercentage = totalLessons > 0
-        ? Math.round(((progress.completedLessons || []).length / totalLessons) * 100)
-        : 0;
-      await progress.save();
+      const progress = await progressService.getProgress(course._id, userId) || {
+        totalLessons,
+        completedLessons: [],
+        lessonProgress: [],
+        completionPercentage: 0,
+        lastWatchedLesson: null,
+        lastAccessed: null,
+        certificateIssued: false,
+      };
 
       return {
         _id: `${userId}-${course._id}`,

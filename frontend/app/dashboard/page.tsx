@@ -152,6 +152,15 @@ export default function DashboardPage() {
     }
   };
 
+  const getEnrollmentProgressPercent = (enrollment: any) => {
+    if (typeof enrollment.progress?.completionPercentage === 'number') {
+      return enrollment.progress.completionPercentage;
+    }
+    const total = enrollment.progress?.totalLessons || enrollment.course?.sections?.reduce((sum: number, section: any) => sum + (section.lessons?.length || 0), 0) || enrollment.course?.lessons?.length || 0;
+    const completed = Array.isArray(enrollment.progress?.completedLessons) ? enrollment.progress.completedLessons.length : 0;
+    return total > 0 ? Math.round((completed / total) * 100) : 0;
+  };
+
   // Filter enrollments based on active tab and search query
   const filteredEnrollments = enrollments
     .filter((enrollment) => enrollment.course) // Filter out enrollments without course
@@ -166,11 +175,7 @@ export default function DashboardPage() {
       }
 
       // Filter by tab
-      const totalLessons = enrollment.course?.lessons?.length || 0;
-      const completedLessons = enrollment.progress?.completedLessons?.length || 0;
-      const progress = totalLessons > 0 
-        ? Math.round((completedLessons / totalLessons) * 100)
-        : 0;
+      const progress = getEnrollmentProgressPercent(enrollment);
 
       if (activeTab === 'in-progress') {
         return progress > 0 && progress < 100;
@@ -376,9 +381,7 @@ export default function DashboardPage() {
               <span className="hidden md:inline">در حال یادگیری</span>
               <span className="md:hidden">یادگیری</span>
               <span className="mr-1">({enrollments.filter(e => {
-                const progress = e.course?.lessons?.length > 0 
-                  ? Math.round((e.progress?.completedLessons?.length || 0) / e.course.lessons.length * 100)
-                  : 0;
+                const progress = getEnrollmentProgressPercent(e);
                 return progress > 0 && progress < 100;
               }).length})</span>
             </TabsTrigger>
@@ -386,9 +389,7 @@ export default function DashboardPage() {
               <span className="hidden md:inline">تکمیل شده</span>
               <span className="md:hidden">تکمیل</span>
               <span className="mr-1">({enrollments.filter(e => {
-                const progress = e.course?.lessons?.length > 0 
-                  ? Math.round((e.progress?.completedLessons?.length || 0) / e.course.lessons.length * 100)
-                  : 0;
+                const progress = getEnrollmentProgressPercent(e);
                 return progress === 100;
               }).length})</span>
             </TabsTrigger>
@@ -396,9 +397,7 @@ export default function DashboardPage() {
               <span className="hidden md:inline">شروع نشده</span>
               <span className="md:hidden">جدید</span>
               <span className="mr-1">({enrollments.filter(e => {
-                const progress = e.course?.lessons?.length > 0 
-                  ? Math.round((e.progress?.completedLessons?.length || 0) / e.course.lessons.length * 100)
-                  : 0;
+                const progress = getEnrollmentProgressPercent(e);
                 return progress === 0;
               }).length})</span>
             </TabsTrigger>
@@ -547,7 +546,7 @@ export default function DashboardPage() {
                   >
                     <div className="relative h-12 w-12 md:h-16 md:w-16 flex-shrink-0">
                       <Image
-                        src={enrollment.course.thumbnail || '/img/cr1.webp'}
+                        src={getImageUrl(enrollment.course.thumbnail)}
                         alt={enrollment.course.title}
                         fill
                         className="object-cover rounded"
