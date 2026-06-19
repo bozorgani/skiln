@@ -527,6 +527,7 @@ export default async function LessonPage({
                       <div className="hidden sm:block" />
                     )}
                   </div>
+                </div>
               </CardContent>
             </Card>
           </div>

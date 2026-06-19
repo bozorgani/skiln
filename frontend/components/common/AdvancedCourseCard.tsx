@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Star, Users, Clock, Play, Flame, BookOpen, TrendingUp } from 'lucide-react';
@@ -17,7 +17,26 @@ interface AdvancedCourseCardProps {
 
 export default function AdvancedCourseCard({ course, index = 0 }: AdvancedCourseCardProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { originalPrice, finalPrice, discountPercent, hasDiscount } = getCoursePricing(course);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="rounded-3xl overflow-hidden border-2 border-border/50 bg-card animate-pulse">
+        <div className="h-[240px] bg-muted" />
+        <div className="p-6 space-y-4">
+          <div className="h-6 bg-muted rounded w-3/4" />
+          <div className="h-4 bg-muted rounded w-full" />
+          <div className="h-4 bg-muted rounded w-2/3" />
+          <div className="h-10 bg-muted rounded w-full" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <RevealOnScroll delay={index * 0.1} direction="up" distance={30}>
