@@ -13,6 +13,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Loader2, ArrowRight, CheckCircle2, Award, Globe, Clock, Lock, Trash2, ShoppingBag } from 'lucide-react';
 import PaymentDialog from '@/components/payment/PaymentDialog';
+import { getImageUrl } from '@/lib/image-utils';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -382,7 +383,7 @@ export default function CheckoutPage() {
                       <div className="flex gap-4">
                         <div className="relative w-24 h-16 sm:w-32 sm:h-20 rounded-lg overflow-hidden border flex-shrink-0">
                           <Image
-                            src={item.thumbnail || '/img/cr1.webp'}
+                            src={getImageUrl(item.thumbnail)}
                             alt={item.title}
                             fill
                             className="object-cover"

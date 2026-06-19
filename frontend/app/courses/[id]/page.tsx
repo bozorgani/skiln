@@ -394,18 +394,6 @@ export default async function CourseDetailPage({
               </CardContent>
             </Card>
 
-            {/* FAQ Section */}
-            <Card className="bg-white dark:bg-gray-900 shadow-sm rounded-lg border-2 mb-8">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-2xl md:text-3xl font-bold text-primary dark:text-white text-center sm:text-right mb-5">
-                  سوالات متداول
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <FAQSection />
-              </CardContent>
-            </Card>
-
             {/* What You'll Learn */}
             <Card className="border-2">
               <CardHeader className="pb-4">
@@ -773,6 +761,19 @@ export default async function CourseDetailPage({
             </div>
           </div>
         </div>
+
+        <section className="mt-8 md:mt-12">
+          <Card className="bg-white dark:bg-gray-900 shadow-sm rounded-lg border-2">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-2xl md:text-3xl font-bold text-primary dark:text-white text-center sm:text-right mb-5">
+                سوالات متداول
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <FAQSection />
+            </CardContent>
+          </Card>
+        </section>
 
         <section className="mt-8 md:mt-12">
           <CourseReviews

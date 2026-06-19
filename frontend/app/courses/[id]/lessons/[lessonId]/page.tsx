@@ -472,7 +472,7 @@ export default async function LessonPage({
                   )}
 
                   {/* Navigation Buttons */}
-                  <div className="flex flex-col sm:flex-row-reverse items-stretch sm:items-center justify-between gap-3 pt-4 border-t border-border/50">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 border-t border-border/50">
                     {nextLesson ? (
                       canNavigateToNext ? (
                         <Link href={`/courses/${id}/lessons/${nextLesson._id}`} className="w-full sm:w-auto">
