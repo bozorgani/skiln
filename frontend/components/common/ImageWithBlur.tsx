@@ -84,7 +84,7 @@ export default function ImageWithBlur({
                          !isUnsplash; // Don't optimize Unsplash images to avoid timeout
 
   return (
-    <div className={cn('relative overflow-hidden', className)}>
+    <div className={cn('relative overflow-hidden', fill && 'h-full w-full', className)}>
       {isLoading && !placeholder && (
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-indigo-500/10 to-purple-500/10 animate-pulse" />
       )}
