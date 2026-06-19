@@ -179,7 +179,7 @@ async function getEnrollment(courseId: string) {
     }
     
     const data = await response.json();
-    return data.data?.enrollment || null;
+    return data.data?.enrollment || data.data || null;
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
     }
@@ -201,7 +201,7 @@ async function getProgress(courseId: string) {
         'Cookie': `token=${token.value}`,
       },
       credentials: 'include',
-      next: { revalidate: 30 },
+      next: { revalidate: 0 },
     });
     
     if (!response.ok) {
@@ -209,7 +209,7 @@ async function getProgress(courseId: string) {
     }
     
     const data = await response.json();
-    return data.data?.progress || null;
+    return data.data?.progress || data.data || null;
   } catch (error) {
     return null;
   }
@@ -236,6 +236,8 @@ export default async function LessonPage({
   if (enrollment && progress) {
     enrollment.progress = progress;
   }
+
+  const effectiveEnrollment = enrollment || (isEnrolledFromLessons ? { progress: progress || {}, enrolled: true } : null);
 
   if (!lesson || !course) {
     notFound();
@@ -375,7 +377,7 @@ export default async function LessonPage({
                       url={videoUrl}
                       lessonId={lesson._id}
                       courseId={id}
-                      enrollment={enrollment}
+                      enrollment={effectiveEnrollment}
                       lesson={lesson}
                       course={course}
                       nextLesson={nextLesson}
