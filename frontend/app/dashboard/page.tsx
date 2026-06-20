@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/lib/auth';
-import { enrollmentsAPI, certificatesAPI, usersAPI } from '@/lib/api';
+import { enrollmentsAPI, certificatesAPI, usersAPI, progressAPI } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -86,7 +86,22 @@ export default function DashboardPage() {
       ]);
       
       const enrollmentsData = enrollmentsResponse.data?.data?.enrollments || [];
-      setEnrollments(enrollmentsData);
+      const enrollmentsWithFreshProgress = await Promise.all(
+        enrollmentsData.map(async (enrollment: any) => {
+          const courseId = enrollment.course?._id;
+          if (!courseId) return enrollment;
+          try {
+            const progressResponse = await progressAPI.getProgress(courseId);
+            const freshProgress = progressResponse.data?.data;
+            return freshProgress
+              ? { ...enrollment, progress: { ...(enrollment.progress || {}), ...freshProgress } }
+              : enrollment;
+          } catch {
+            return enrollment;
+          }
+        })
+      );
+      setEnrollments(enrollmentsWithFreshProgress);
       setStats(statsResponse.data?.data || null);
     } catch (error: any) {
       if (process.env.NODE_ENV === 'development') {

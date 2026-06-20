@@ -2,6 +2,7 @@ const ApiError = require('../../core/ApiError');
 const Progress = require('./progress.model');
 const Course = require('../courses/course.model');
 const Certificate = require('../certificates/certificate.model');
+const Order = require('../orders/order.model');
 
 const getCourseLessonIds = (course) => {
   const ids = [];
@@ -38,8 +39,30 @@ const normalizeLessonId = (course, lessonId) => {
   return raw;
 };
 
-const isEnrolled = (course, userId) => {
+const isEnrolledInStudents = (course, userId) => {
   return (course.students || []).some((studentId) => studentId.toString() === userId.toString());
+};
+
+const hasPaidOrder = async (courseId, userId) => {
+  const paidOrder = await Order.findOne({ user: userId, course: courseId, status: 'paid' });
+  if (paidOrder) return true;
+
+  const legacyOrder = await Order.findOne({ user: userId, course: courseId });
+  return !!(legacyOrder && (!legacyOrder.status || legacyOrder.status === null));
+};
+
+const ensureProgressAccess = async (course, userId) => {
+  if (course.price === 0) return true;
+  if (isEnrolledInStudents(course, userId)) return true;
+
+  const paid = await hasPaidOrder(course._id, userId);
+  if (paid) {
+    course.students.push(userId);
+    await course.save();
+    return true;
+  }
+
+  return false;
 };
 
 const getOrCreateProgress = async (courseId, userId) => {
@@ -148,7 +171,7 @@ const updateLessonDetail = (progress, lessonId, completed, meta = {}) => {
 const updateProgress = async (courseId, userId, lessonId, completed, meta = {}) => {
   const course = await Course.findById(courseId);
   if (!course) throw new ApiError(404, 'دوره یافت نشد');
-  if (!isEnrolled(course, userId)) throw new ApiError(403, 'شما در این دوره ثبت‌نام نکرده‌اید');
+  if (!(await ensureProgressAccess(course, userId))) throw new ApiError(403, 'شما در این دوره ثبت‌نام نکرده‌اید');
 
   const normalizedLessonId = normalizeLessonId(course, lessonId);
   const validLessonIds = getCourseLessonIds(course);
@@ -199,7 +222,7 @@ const buildProgressResponse = (course, progress, lessonId = null, completed = nu
 const getProgress = async (courseId, userId) => {
   const course = await Course.findById(courseId);
   if (!course) throw new ApiError(404, 'دوره یافت نشد');
-  if (!isEnrolled(course, userId)) return null;
+  if (!(await ensureProgressAccess(course, userId))) return null;
 
   const progress = await getOrCreateProgress(courseId, userId);
   progress.lastAccessed = progress.lastAccessed || new Date();
