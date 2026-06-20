@@ -161,63 +161,62 @@ const getUserStats = async (userId) => {
   const Course = require('../courses/course.model');
   const Order = require('../orders/order.model');
   const Payment = require('../payments/payment.model');
+  const Certificate = require('../certificates/certificate.model');
+  const progressService = require('../progress/progress.service');
 
-  // Get enrolled courses
   const enrolledCoursesList = await Course.find({ students: userId }).select('_id sections');
-
-  // Get enrolled courses count (total)
   const totalCourses = enrolledCoursesList.length;
 
-  // Calculate in-progress courses (courses with progress > 0% and < 100%)
-  // For now, we'll consider all enrolled courses as in-progress if they have sections
-  // You can enhance this by tracking actual progress per course
-  const inProgressCourses = enrolledCoursesList.filter(
-    (course) => course.sections && course.sections.length > 0
-  ).length;
+  const progresses = await Promise.all(
+    enrolledCoursesList.map((course) => progressService.getProgress(course._id, userId).catch(() => null))
+  );
 
-  // Calculate completed courses (courses with 100% progress)
-  // For now, we'll set it to 0 - you can enhance this by tracking actual completion
-  const completedCourses = 0;
-
-  // Calculate certificates count (same as completed courses for now)
-  const certificatesCount = completedCourses;
-
-  // Get total lessons count across all enrolled courses
-  const totalLessons = enrolledCoursesList.reduce((sum, course) => {
-    if (course.sections && Array.isArray(course.sections)) {
-      return (
-        sum +
-        course.sections.reduce(
-          (sectionSum, section) =>
-            sectionSum + (section.lessons && Array.isArray(section.lessons) ? section.lessons.length : 0),
-          0
-        )
-      );
-    }
-    return sum;
+  const totalLessons = progresses.reduce((sum, progress, index) => {
+    if (progress?.totalLessons) return sum + progress.totalLessons;
+    const course = enrolledCoursesList[index];
+    return sum + (course.sections || []).reduce(
+      (sectionSum, section) => sectionSum + ((section.lessons || []).length),
+      0
+    );
   }, 0);
 
-  // Get completed lessons count (for now, set to 0 - you can track this separately)
-  const completedLessons = 0;
+  const completedLessons = progresses.reduce(
+    (sum, progress) => sum + ((progress?.completedLessons || []).length),
+    0
+  );
 
-  // Calculate total progress percentage
-  const totalProgress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+  const weightedProgressSum = progresses.reduce((sum, progress) => {
+    if (!progress) return sum;
+    const lessonCount = progress.totalLessons || 0;
+    return sum + ((progress.completionPercentage || 0) * lessonCount);
+  }, 0);
 
-  // Get orders count
+  const totalProgress = totalLessons > 0 ? Math.round(weightedProgressSum / totalLessons) : 0;
+  const completedCourses = progresses.filter((progress) => (progress?.completionPercentage || 0) >= 100).length;
+  const inProgressCourses = progresses.filter((progress) => {
+    const percent = progress?.completionPercentage || 0;
+    return percent > 0 && percent < 100;
+  }).length;
+  const certificatesCount = await Certificate.countDocuments({ user: userId });
+
   const totalOrders = await Order.countDocuments({ user: userId });
   const completedOrders = await Order.countDocuments({ user: userId, status: 'paid' });
 
-  // Get total spent
   const paidOrders = await Order.find({ user: userId, status: 'paid' });
   const orderIds = paidOrders.map((order) => order._id);
-  const payments = await Payment.find({ order: { $in: orderIds } });
+  const payments = await Payment.find({ order: { $in: orderIds }, status: 'succeeded' });
   const totalSpent = payments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
 
-  // Study streak (for now, set to 0 - you can track this separately)
-  const studyStreak = 0;
+  const activeDays = new Set(
+    progresses
+      .map((progress) => progress?.lastAccessed)
+      .filter(Boolean)
+      .map((date) => new Date(date).toISOString().slice(0, 10))
+  );
+  const studyStreak = activeDays.size;
 
   return {
-    enrolledCourses: totalCourses, // Backward compatibility
+    enrolledCourses: totalCourses,
     totalOrders,
     completedOrders,
     pendingOrders: totalOrders - completedOrders,

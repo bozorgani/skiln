@@ -167,13 +167,42 @@ export default function DashboardPage() {
     }
   };
 
-  const getEnrollmentProgressPercent = (enrollment: any) => {
-    if (typeof enrollment.progress?.completionPercentage === 'number') {
-      return enrollment.progress.completionPercentage;
-    }
+  const getEnrollmentProgressStats = (enrollment: any) => {
     const total = enrollment.progress?.totalLessons || enrollment.course?.sections?.reduce((sum: number, section: any) => sum + (section.lessons?.length || 0), 0) || enrollment.course?.lessons?.length || 0;
     const completed = Array.isArray(enrollment.progress?.completedLessons) ? enrollment.progress.completedLessons.length : 0;
-    return total > 0 ? Math.round((completed / total) * 100) : 0;
+    const percent = typeof enrollment.progress?.completionPercentage === 'number'
+      ? enrollment.progress.completionPercentage
+      : total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { total, completed, percent };
+  };
+
+  const getEnrollmentProgressPercent = (enrollment: any) => getEnrollmentProgressStats(enrollment).percent;
+
+  const overallProgressStats = enrollments.reduce(
+    (acc, enrollment) => {
+      if (!enrollment.course) return acc;
+      const item = getEnrollmentProgressStats(enrollment);
+      acc.totalLessons += item.total;
+      acc.completedLessons += item.completed;
+      acc.weightedProgress += item.percent * item.total;
+      return acc;
+    },
+    { totalLessons: 0, completedLessons: 0, weightedProgress: 0 }
+  );
+
+  const derivedStats = {
+    ...(stats?.stats || {}),
+    totalCourses: enrollments.filter((enrollment) => enrollment.course).length,
+    inProgressCourses: enrollments.filter((enrollment) => {
+      const percent = getEnrollmentProgressPercent(enrollment);
+      return percent > 0 && percent < 100;
+    }).length,
+    completedCourses: enrollments.filter((enrollment) => getEnrollmentProgressPercent(enrollment) === 100).length,
+    totalLessons: overallProgressStats.totalLessons,
+    completedLessons: overallProgressStats.completedLessons,
+    totalProgress: overallProgressStats.totalLessons > 0
+      ? Math.round(overallProgressStats.weightedProgress / overallProgressStats.totalLessons)
+      : 0,
   };
 
   // Filter enrollments based on active tab and search query
@@ -269,7 +298,7 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent className="p-4 pt-0 relative z-10">
                   <div className="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-primary to-indigo-600 bg-clip-text text-transparent">
-                    {stats.stats?.totalCourses || 0}
+                    {derivedStats.totalCourses || 0}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 font-medium">دوره‌های ثبت‌نام شده</p>
                 </CardContent>
@@ -285,7 +314,7 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent className="p-4 pt-0 relative z-10">
                   <div className="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                    {stats.stats?.inProgressCourses || 0}
+                    {derivedStats.inProgressCourses || 0}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 font-medium">دوره‌های در حال پیشرفت</p>
                 </CardContent>
@@ -301,7 +330,7 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent className="p-4 pt-0 relative z-10">
                   <div className="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                    {stats.stats?.completedCourses || 0}
+                    {derivedStats.completedCourses || 0}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 font-medium">دوره‌های تمام شده</p>
                 </CardContent>
@@ -317,7 +346,7 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent className="p-4 pt-0 relative z-10">
                   <div className="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">
-                    {stats.stats?.certificatesCount || 0}
+                    {derivedStats.certificatesCount || 0}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 font-medium">گواهینامه‌های دریافت شده</p>
                 </CardContent>
@@ -342,13 +371,13 @@ export default function DashboardPage() {
                   <div className="flex justify-between items-center text-sm sm:text-base">
                     <span className="font-semibold">پیشرفت کل دوره‌ها</span>
                     <span className="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-primary to-indigo-600 bg-clip-text text-transparent">
-                      {stats.stats.totalProgress || 0}%
+                      {derivedStats.totalProgress || 0}%
                     </span>
                   </div>
                   <div className="w-full bg-secondary rounded-full h-3 sm:h-4 overflow-hidden shadow-inner">
                     <div
                       className="h-3 sm:h-4 rounded-full bg-gradient-to-r from-primary via-indigo-600 to-purple-600 transition-all duration-1000 ease-out shadow-lg relative overflow-hidden"
-                      style={{ width: `${stats.stats.totalProgress || 0}%` }}
+                      style={{ width: `${derivedStats.totalProgress || 0}%` }}
                     >
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shine"></div>
                     </div>
@@ -356,11 +385,11 @@ export default function DashboardPage() {
                   <div className="flex flex-col sm:flex-row justify-between text-xs sm:text-sm text-muted-foreground gap-2 sm:gap-0 font-medium">
                     <span className="flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 text-green-500" />
-                      {stats.stats.completedLessons || 0} از {stats.stats.totalLessons || 0} درس تکمیل شده
+                      {derivedStats.completedLessons || 0} از {derivedStats.totalLessons || 0} درس تکمیل شده
                     </span>
                     <span className="flex items-center gap-2">
                       <TrendingUp className="h-4 w-4 text-primary" />
-                      {stats.stats.studyStreak || 0} روز پیوسته
+                      {derivedStats.studyStreak || 0} روز پیوسته
                     </span>
                   </div>
                 </div>
