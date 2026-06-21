@@ -36,7 +36,6 @@ const certificateSchema = new mongoose.Schema(
 
 // Index برای جستجوی سریع
 certificateSchema.index({ user: 1, course: 1 }, { unique: true });
-certificateSchema.index({ certificateNumber: 1 });
 certificateSchema.index({ user: 1 });
 
 const Certificate = mongoose.model('Certificate', certificateSchema);

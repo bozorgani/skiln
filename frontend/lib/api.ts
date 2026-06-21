@@ -151,6 +151,9 @@ export const progressAPI = {
 export const certificatesAPI = {
   download: (courseId: string) =>
     api.get(`/certificates/${courseId}`, { responseType: 'blob' }),
+  getMeta: (courseId: string) => api.get(`/certificates/${courseId}/meta`),
+  getMine: () => api.get('/certificates/user/my-certificates'),
+  verify: (certificateNumber: string) => api.get(`/certificates/verify/${certificateNumber}`),
 };
 
 // Users API

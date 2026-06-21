@@ -58,8 +58,6 @@ function PaymentSuccessPageContent() {
 
   const getPaymentMethodName = (method: string) => {
     switch (method) {
-      case 'stripe':
-        return 'کارت بانکی (Stripe)';
       case 'zarinpal':
         return 'زرین‌پال';
       default:

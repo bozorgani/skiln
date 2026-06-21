@@ -254,7 +254,8 @@ const issueCertificate = async (courseId, userId, progress) => {
 
   const timestamp = Date.now();
   const random = Math.floor(Math.random() * 10000);
-  const certificateNumber = `CERT-${timestamp}-${random}`;
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const certificateNumber = `SKILN-${date}-${random}`;
 
   return Certificate.create({
     user: userId,

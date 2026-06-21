@@ -4,14 +4,9 @@ const certificateController = require('./certificate.controller');
 
 const router = express.Router();
 
-// Get certificate for a course
-router.get('/:courseId', auth(), certificateController.getCertificate);
-
-// Get all certificates for current user
 router.get('/user/my-certificates', auth(), certificateController.getUserCertificates);
-
-// Verify certificate by certificate number (public endpoint)
 router.get('/verify/:certificateNumber', certificateController.verifyCertificate);
+router.get('/:courseId/meta', auth(), certificateController.getCertificate);
+router.get('/:courseId', auth(), certificateController.downloadCertificate);
 
 module.exports = router;
-

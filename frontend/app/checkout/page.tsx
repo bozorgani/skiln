@@ -26,7 +26,6 @@ export default function CheckoutPage() {
   const [processing, setProcessing] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [paymentData, setPaymentData] = useState<{
-    clientSecret?: string;
     paymentId: string;
     orderId?: string;
     zarinpalUrl?: string;
@@ -199,7 +198,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      if (!data.clientSecret && !data.zarinpalUrl && !data.payirUrl && !data.idpayUrl && !data.testPaymentUrl) {
+      if (!data.zarinpalUrl && !data.payirUrl && !data.idpayUrl && !data.testPaymentUrl) {
         toast({
           title: 'خطا',
           description: 'هیچ روش پرداختی در حال حاضر فعال نیست. لطفاً با پشتیبانی تماس بگیرید.',
@@ -209,7 +208,6 @@ export default function CheckoutPage() {
       }
 
       setPaymentData({
-        clientSecret: data.clientSecret,
         paymentId: data.paymentId || data.orderId,
         orderId: data.orderId,
         zarinpalUrl: data.zarinpalUrl,
@@ -557,7 +555,6 @@ export default function CheckoutPage() {
         <PaymentDialog
           open={paymentDialogOpen}
           onOpenChange={setPaymentDialogOpen}
-          clientSecret={paymentData.clientSecret}
           paymentId={paymentData.paymentId}
           orderId={paymentData.orderId}
           courseId={coursesToPurchase[0].courseId}

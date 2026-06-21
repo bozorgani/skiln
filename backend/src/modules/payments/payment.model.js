@@ -11,7 +11,7 @@ const paymentSchema = new mongoose.Schema(
     provider: { 
       type: String, 
       required: true,
-      enum: ['stripe', 'zarinpal', 'payir', 'idpay', 'admin', 'free', 'test'], // روش‌های پرداخت
+      enum: ['zarinpal', 'payir', 'idpay', 'admin', 'free', 'test'], // روش‌های پرداخت
       default: 'admin'
     },
     status: {

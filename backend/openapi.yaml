@@ -431,6 +431,61 @@ paths:
       responses:
         '200':
           description: Review moderated
+  /certificates/user/my-certificates:
+    get:
+      summary: List current user's certificates
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: User certificates
+  /certificates/verify/{certificateNumber}:
+    get:
+      summary: Verify a certificate publicly
+      parameters:
+        - in: path
+          name: certificateNumber
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Certificate is valid
+        '404':
+          description: Certificate not found
+  /certificates/{courseId}:
+    get:
+      summary: Download course completion certificate as PDF
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: PDF certificate
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+  /certificates/{courseId}/meta:
+    get:
+      summary: Get certificate metadata for a completed course
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Certificate metadata
   /uploads/images:
     post:
       summary: Upload image

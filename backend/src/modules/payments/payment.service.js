@@ -466,21 +466,18 @@ const createPaymentIntent = async (courseId, userId, couponCode = null) => {
     };
   }
 
-  const hasStripe = process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PUBLISHABLE_KEY;
   const hasZarinpal = process.env.ZARINPAL_MERCHANT_ID;
   const hasPayir = process.env.PAYIR_API_KEY;
   const hasIdpay = process.env.IDPAY_API_KEY;
-  const enableTestPayment = !hasStripe && !hasZarinpal && !hasPayir && !hasIdpay;
+  const enableTestPayment = !hasZarinpal && !hasPayir && !hasIdpay;
 
   const provider = enableTestPayment
     ? 'test'
-    : hasStripe
-      ? 'stripe'
-      : hasZarinpal
-        ? 'zarinpal'
-        : hasPayir
-          ? 'payir'
-          : 'idpay';
+    : hasZarinpal
+      ? 'zarinpal'
+      : hasPayir
+        ? 'payir'
+        : 'idpay';
 
   const payment = await Payment.create({
     order: order._id,
@@ -494,7 +491,6 @@ const createPaymentIntent = async (courseId, userId, couponCode = null) => {
     },
   });
 
-  const clientSecret = null;
   let zarinpalUrl = null;
   const payirUrl = null;
   const idpayUrl = null;
@@ -509,7 +505,6 @@ const createPaymentIntent = async (courseId, userId, couponCode = null) => {
     paymentId: payment._id,
     orderId: order._id,
     amount: finalPrice,
-    clientSecret: hasStripe ? clientSecret : null,
     zarinpalUrl: hasZarinpal ? zarinpalUrl : null,
     payirUrl: hasPayir ? payirUrl : null,
     idpayUrl: hasIdpay ? idpayUrl : null,
