@@ -31,15 +31,3 @@ export default function ScrollProgress() {
   );
 }
 
-
-
-
-
-
-
-
-
-
-
-
-

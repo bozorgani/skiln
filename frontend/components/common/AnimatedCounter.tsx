@@ -75,15 +75,3 @@ export default function AnimatedCounter({ value, duration = 2000, className = ''
   );
 }
 
-
-
-
-
-
-
-
-
-
-
-
-

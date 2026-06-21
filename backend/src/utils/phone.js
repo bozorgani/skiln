@@ -22,13 +22,3 @@ module.exports = {
   normalizePhone,
 };
 
-
-
-
-
-
-
-
-
-
-

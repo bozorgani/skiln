@@ -82,15 +82,3 @@ export function hasToken(): boolean {
   return getToken() !== null;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-

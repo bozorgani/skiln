@@ -78,15 +78,3 @@ export default function ScrollAnimation({
   );
 }
 
-
-
-
-
-
-
-
-
-
-
-
-

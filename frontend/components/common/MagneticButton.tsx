@@ -46,15 +46,3 @@ export default function MagneticButton({
   );
 }
 
-
-
-
-
-
-
-
-
-
-
-
-

@@ -172,7 +172,6 @@ async function getEnrollment(courseId: string) {
     });
     
     if (!response.ok) {
-      // Log error for debugging
       if (process.env.NODE_ENV === 'development') {
       }
       return null;
@@ -181,8 +180,6 @@ async function getEnrollment(courseId: string) {
     const data = await response.json();
     return data.data?.enrollment || data.data || null;
   } catch (error) {
-    if (process.env.NODE_ENV === 'development') {
-    }
     return null;
   }
 }

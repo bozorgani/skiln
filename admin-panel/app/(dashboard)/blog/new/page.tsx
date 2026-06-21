@@ -296,15 +296,3 @@ export default function NewBlogPostPage() {
   );
 }
 
-
-
-
-
-
-
-
-
-
-
-
-

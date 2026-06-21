@@ -48,15 +48,3 @@ export default function ParallaxSection({
   );
 }
 
-
-
-
-
-
-
-
-
-
-
-
-

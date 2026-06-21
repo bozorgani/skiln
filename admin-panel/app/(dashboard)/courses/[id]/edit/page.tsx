@@ -116,10 +116,6 @@ export default function EditCoursePage() {
       // Response format: { data: { course: {...} } }
       const course = response.data?.data?.course || response.data?.data || response.data?.course;
       
-      // Debug: Log course data to check shortDescription
-      if (process.env.NODE_ENV === 'development') {
-      }
-      
       if (course) {
         // تبدیل ارقام فارسی به انگلیسی برای price (اگر string است)
         let priceValue = course.price;
@@ -149,7 +145,6 @@ export default function EditCoursePage() {
           ? String(course.shortDescription) 
           : '';
         
-        // Debug: Log shortDescription value
         if (process.env.NODE_ENV === 'development') {
         }
         
