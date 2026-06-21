@@ -204,7 +204,7 @@ function CourseCarouselCard({ course }: { course: any }) {
           </div>
 
           {/* Price & Students */}
-          <div className="flex items-end justify-between mt-4">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mt-4 min-w-0">
             {/* Students Count */}
             <span className="flex items-center gap-x-0.5 text-slate-500 dark:text-white/70 text-sm">
               <Users className="size-5" />
@@ -212,23 +212,23 @@ function CourseCarouselCard({ course }: { course: any }) {
             </span>
 
             {/* Price */}
-            <div className="flex items-center gap-x-2.5">
-              <div className={`text-sm font-medium p-1 rounded bg-green-500 text-white ${hasDiscount ? '' : 'hidden'}`}>
+            <div className="flex items-end justify-between sm:justify-end gap-2 min-w-0 w-full sm:w-auto">
+              <div className={`text-xs sm:text-sm font-medium px-1.5 py-1 rounded bg-green-500 text-white flex-shrink-0 ${hasDiscount ? '' : 'hidden'}`}>
                 {discountPercent}%
               </div>
-              <div className="flex flex-col items-end">
+              <div className="flex flex-col items-end min-w-0">
                 {hasDiscount && (
-                  <span className="text-sm text-slate-500 dark:text-white/70 -mb-1.5 line-through">
+                  <span className="text-xs sm:text-sm text-slate-500 dark:text-white/70 -mb-1.5 line-through whitespace-nowrap">
                     {originalPrice.toLocaleString('fa-IR')}
                   </span>
                 )}
-                <span className={`${hasDiscount ? 'text-green-500' : 'text-foreground'} font-bold text-lg`}>
+                <span className={`${hasDiscount ? 'text-green-500' : 'text-foreground'} font-bold text-base sm:text-lg break-words leading-tight`}>
                   {finalPrice === 0 ? (
                     'رایگان'
                   ) : (
                     <>
                       {finalPrice.toLocaleString('fa-IR')}
-                      <span className="font-medium text-base mr-1">تومان</span>
+                      <span className="font-medium text-xs sm:text-sm mr-1 whitespace-nowrap">تومان</span>
                     </>
                   )}
                 </span>

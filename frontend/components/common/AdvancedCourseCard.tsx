@@ -133,8 +133,8 @@ export default function AdvancedCourseCard({ course, index = 0 }: AdvancedCourse
           </div>
 
           {/* Enhanced Footer */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 text-muted-foreground">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 min-w-0">
+            <div className="flex items-center gap-3 text-muted-foreground min-w-0 flex-wrap">
               <div className="flex items-center gap-1.5 group/stat">
                 <Users className="h-4 w-4 group-hover/stat:scale-110 transition-transform" />
                 <span className="text-xs font-black">{course.studentsEnrolled || 0}</span>
@@ -152,15 +152,15 @@ export default function AdvancedCourseCard({ course, index = 0 }: AdvancedCourse
                 );
               })()}
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-end justify-between sm:justify-end gap-2 min-w-0 w-full sm:w-auto">
               {hasDiscount && (
-                <span className="text-xs text-muted-foreground line-through font-bold">
+                <span className="text-xs text-muted-foreground line-through font-bold whitespace-nowrap flex-shrink-0">
                   {originalPrice.toLocaleString('fa-IR')}
                 </span>
               )}
-              <div className="text-left">
+              <div className="text-left min-w-0">
                 <span className={cn(
-                  "font-black text-2xl transition-colors duration-300",
+                  "font-black text-lg sm:text-xl lg:text-2xl transition-colors duration-300 break-words leading-tight",
                   hasDiscount ? 'text-green-500 group-hover:text-green-400' : 'text-primary group-hover:text-indigo-600'
                 )}>
                   {finalPrice === 0 ? (
@@ -168,7 +168,7 @@ export default function AdvancedCourseCard({ course, index = 0 }: AdvancedCourse
                   ) : (
                     <>
                       {finalPrice.toLocaleString('fa-IR')}
-                      <span className="text-sm font-bold mr-1">تومان</span>
+                      <span className="text-xs sm:text-sm font-bold mr-1 whitespace-nowrap">تومان</span>
                     </>
                   )}
                 </span>

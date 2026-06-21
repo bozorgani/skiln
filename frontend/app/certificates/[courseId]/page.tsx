@@ -9,6 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { certificatesAPI } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
 export default function CourseCertificatePage() {
   const params = useParams();
   const courseId = params?.courseId as string;
@@ -31,28 +33,16 @@ export default function CourseCertificatePage() {
       .finally(() => setLoading(false));
   }, [courseId, toast]);
 
-  const downloadCertificate = async () => {
+  const downloadCertificate = () => {
     setDownloading(true);
-    try {
-      const response = await certificatesAPI.download(courseId);
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `certificate-${certificate?.certificateNumber || courseId}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error: any) {
-      toast({
-        title: 'خطا در دانلود',
-        description: error.response?.data?.message || 'دانلود گواهینامه ناموفق بود.',
-        variant: 'destructive',
-      });
-    } finally {
-      setDownloading(false);
-    }
+    const link = document.createElement('a');
+    link.href = `${API_URL}/certificates/${courseId}`;
+    link.download = `certificate-${certificate?.certificateNumber || courseId}.pdf`;
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => setDownloading(false), 800);
   };
 
   if (loading) {
