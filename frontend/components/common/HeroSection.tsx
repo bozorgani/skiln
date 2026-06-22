@@ -50,10 +50,33 @@ export default function HeroSection({ featuredCourse }: HeroSectionProps) {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-purple-500/30 rounded-full blur-3xl animate-float" style={{ animationDelay: '4s' }}></div>
         </div>
 
+        {/* Featured course visual card */}
+        <div className="absolute left-8 top-1/2 -translate-y-1/2 z-10 hidden lg:block w-[360px] xl:w-[440px]">
+          <div className="relative aspect-video rounded-3xl overflow-hidden border-4 border-white/20 shadow-2xl bg-white/10 backdrop-blur-xl">
+            <Image
+              src={getImageUrl(featuredCourse.thumbnail)}
+              alt={`تصویر دوره ویژه ${featuredCourse.title} - Skiln`}
+              fill
+              className="object-cover"
+              sizes="440px"
+              priority
+              quality={95}
+              unoptimized={!featuredCourse.thumbnail || featuredCourse.thumbnail.includes('via.placeholder.com')}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
+            <div className="absolute bottom-4 right-4 left-4 flex items-center justify-between gap-3">
+              <span className="px-3 py-1.5 rounded-full bg-white/90 text-slate-900 text-xs font-black shadow-lg">دوره ویژه</span>
+              <span className="px-3 py-1.5 rounded-full bg-primary text-white text-xs font-black shadow-lg">
+                {featuredCourse.price === 0 ? 'رایگان' : `${featuredCourse.price.toLocaleString('fa-IR')} تومان`}
+              </span>
+            </div>
+          </div>
+        </div>
+
         {/* Content */}
         <div className="absolute inset-0 flex items-center">
           <div className="container mx-auto px-4 md:px-8 relative z-10">
-            <div className="max-w-5xl">
+            <div className="max-w-5xl lg:max-w-3xl xl:max-w-4xl">
               {/* Badge */}
               <ScrollAnimation delay={0} direction="scale" duration={0.6}>
                 <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 backdrop-blur-xl rounded-full mb-4 border border-white/20 shadow-lg group/badge hover:bg-white/15 transition-all duration-300">

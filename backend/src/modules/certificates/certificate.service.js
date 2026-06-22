@@ -1,24 +1,32 @@
 const path = require('path');
+const fs = require('fs');
 const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
-const bidiFactory = require('bidi-js');
-const { PersianShaper } = require('arabic-persian-reshaper');
+const sharp = require('sharp');
 const ApiError = require('../../core/ApiError');
 const Certificate = require('./certificate.model');
 const Progress = require('../progress/progress.model');
 const Course = require('../courses/course.model');
 
-const bidi = bidiFactory();
 const FONT_REGULAR_PATH = require.resolve('vazirmatn/fonts/ttf/Vazirmatn-Regular.ttf');
 const FONT_BOLD_PATH = require.resolve('vazirmatn/fonts/ttf/Vazirmatn-Bold.ttf');
+const FONT_REGULAR_BASE64 = fs.readFileSync(FONT_REGULAR_PATH).toString('base64');
+const FONT_BOLD_BASE64 = fs.readFileSync(FONT_BOLD_PATH).toString('base64');
 
 const getFrontendUrl = () => (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
 
-const shapeFa = (value = '') => {
-  const shaped = PersianShaper.convertArabic(String(value));
-  const levels = bidi.getEmbeddingLevels(shaped, 'rtl');
-  return bidi.getReorderedString(shaped, levels);
-};
+const escapeXml = (value = '') => String(value)
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&apos;');
+
+const faDate = (value) => new Date(value).toLocaleDateString('fa-IR-u-nu-latn', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+});
 
 const generateCertificateNumber = () => {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -91,24 +99,82 @@ const formatCertificate = (certificate) => ({
   course: certificate.course,
 });
 
-const drawCenteredFa = (doc, text, y, options = {}) => {
-  doc.font(options.font || 'Vazir').fontSize(options.size || 24).fillColor(options.color || '#0f172a');
-  doc.text(shapeFa(text), 0, y, {
-    width: doc.page.width,
-    align: 'center',
-    lineGap: options.lineGap || 4,
-  });
+const buildCertificateSvg = async (certificate) => {
+  const width = 1600;
+  const height = 1131;
+  const verificationUrl = `${getFrontendUrl()}/certificates/verify/${certificate.certificateNumber}`;
+  const qrDataUrl = await QRCode.toDataURL(verificationUrl, { margin: 1, width: 220 });
+  const issued = faDate(certificate.issuedAt);
+  const completed = faDate(certificate.completedAt);
+  const studentName = escapeXml(certificate.user?.name || 'دانشجوی Skiln');
+  const courseTitle = escapeXml(certificate.course?.title || 'دوره آموزشی');
+  const certificateNumber = escapeXml(certificate.certificateNumber);
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style><![CDATA[
+      @font-face { font-family: 'Vazirmatn'; src: url(data:font/truetype;charset=utf-8;base64,${FONT_REGULAR_BASE64}) format('truetype'); font-weight: 400; }
+      @font-face { font-family: 'Vazirmatn'; src: url(data:font/truetype;charset=utf-8;base64,${FONT_BOLD_BASE64}) format('truetype'); font-weight: 700; }
+      .fa { font-family: 'Vazirmatn', sans-serif; direction: rtl; unicode-bidi: bidi-override; text-anchor: middle; }
+      .latin { font-family: 'Vazirmatn', sans-serif; }
+    ]]></style>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#eff6ff"/>
+      <stop offset="0.5" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#eef2ff"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="100%" height="100%" fill="url(#bg)"/>
+  <rect x="48" y="48" width="1504" height="1035" rx="30" fill="none" stroke="#2563eb" stroke-width="8"/>
+  <rect x="76" y="76" width="1448" height="979" rx="24" fill="none" stroke="#93c5fd" stroke-width="2"/>
+
+  <circle cx="210" cy="185" r="92" fill="#dbeafe" opacity="0.8"/>
+  <circle cx="1390" cy="925" r="120" fill="#ede9fe" opacity="0.8"/>
+  <path d="M108 280 C 360 160, 470 260, 720 120" fill="none" stroke="#bfdbfe" stroke-width="4" opacity="0.7"/>
+  <path d="M910 1010 C 1120 890, 1230 1010, 1490 800" fill="none" stroke="#ddd6fe" stroke-width="4" opacity="0.9"/>
+
+  <text x="120" y="132" class="latin" font-size="48" font-weight="700" fill="#1d4ed8">SKILN</text>
+  <text x="800" y="210" class="fa" font-size="68" font-weight="700" fill="#1e3a8a">گواهینامه پایان دوره</text>
+  <text x="800" y="310" class="fa" font-size="34" fill="#475569">بدین وسیله گواهی می‌شود که</text>
+  <text x="800" y="420" class="fa" font-size="64" font-weight="700" fill="#0f172a">${studentName}</text>
+  <text x="800" y="515" class="fa" font-size="34" fill="#475569">دوره زیر را با موفقیت به پایان رسانده است</text>
+  <text x="800" y="625" class="fa" font-size="58" font-weight="700" fill="#1d4ed8">${courseTitle}</text>
+
+  <rect x="420" y="695" width="760" height="78" rx="22" fill="#eff6ff" stroke="#bfdbfe"/>
+  <text x="800" y="745" class="fa" font-size="28" fill="#334155">تاریخ تکمیل: ${escapeXml(completed)}    تاریخ صدور: ${escapeXml(issued)}</text>
+
+  <line x1="165" y1="885" x2="555" y2="885" stroke="#94a3b8" stroke-width="2"/>
+  <text x="360" y="930" class="fa" font-size="24" fill="#475569">مدیریت آموزش Skiln</text>
+
+  <image href="${qrDataUrl}" x="1305" y="780" width="170" height="170"/>
+  <text x="1390" y="988" class="latin" font-size="18" text-anchor="middle" fill="#64748b">Scan to verify</text>
+
+  <text x="115" y="1005" class="latin" font-size="20" fill="#475569">Certificate No: ${certificateNumber}</text>
+  <text x="115" y="1042" class="latin" font-size="18" fill="#64748b">Verify: ${escapeXml(verificationUrl)}</text>
+</svg>`;
 };
 
 const generateCertificatePdf = async (certificate) => {
-  const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 42, info: {
-    Title: `Skiln Certificate ${certificate.certificateNumber}`,
-    Author: 'Skiln',
-    Subject: 'Course Completion Certificate',
-  }});
+  const svg = await buildCertificateSvg(certificate);
+  const pngBuffer = await sharp(Buffer.from(svg)).png().toBuffer();
 
-  doc.registerFont('Vazir', FONT_REGULAR_PATH);
-  doc.registerFont('VazirBold', FONT_BOLD_PATH);
+  const doc = new PDFDocument({
+    size: 'A4',
+    layout: 'landscape',
+    margin: 0,
+    info: {
+      Title: `Skiln Certificate ${certificate.certificateNumber}`,
+      Author: 'Skiln',
+      Subject: 'Course Completion Certificate',
+    },
+  });
+
   const chunks = [];
   doc.on('data', (chunk) => chunks.push(chunk));
 
@@ -117,34 +183,10 @@ const generateCertificatePdf = async (certificate) => {
     doc.on('error', reject);
   });
 
-  const width = doc.page.width;
-  const height = doc.page.height;
-  const verificationUrl = `${getFrontendUrl()}/certificates/verify/${certificate.certificateNumber}`;
-  const qrDataUrl = await QRCode.toDataURL(verificationUrl, { margin: 1, width: 180 });
-  const qrBuffer = Buffer.from(qrDataUrl.split(',')[1], 'base64');
-
-  doc.rect(0, 0, width, height).fill('#f8fafc');
-  doc.lineWidth(4).strokeColor('#2563eb').roundedRect(28, 28, width - 56, height - 56, 18).stroke();
-  doc.lineWidth(1).strokeColor('#93c5fd').roundedRect(42, 42, width - 84, height - 84, 14).stroke();
-
-  doc.fillColor('#1d4ed8').font('VazirBold').fontSize(26).text('SKILN', 60, 58, { align: 'left' });
-  drawCenteredFa(doc, 'گواهینامه پایان دوره', 80, { size: 34, color: '#1e3a8a', font: 'VazirBold' });
-  drawCenteredFa(doc, 'بدین وسیله گواهی می‌شود که', 145, { size: 18, color: '#475569' });
-  drawCenteredFa(doc, certificate.user?.name || 'دانشجوی Skiln', 185, { size: 32, color: '#0f172a', font: 'VazirBold' });
-  drawCenteredFa(doc, 'دوره زیر را با موفقیت به پایان رسانده است', 240, { size: 18, color: '#475569' });
-  drawCenteredFa(doc, certificate.course?.title || 'دوره آموزشی', 282, { size: 30, color: '#1d4ed8', font: 'VazirBold' });
-
-  const issued = new Date(certificate.issuedAt).toLocaleDateString('fa-IR');
-  const completed = new Date(certificate.completedAt).toLocaleDateString('fa-IR');
-  drawCenteredFa(doc, `تاریخ تکمیل: ${completed}     تاریخ صدور: ${issued}`, 345, { size: 15, color: '#334155' });
-
-  doc.font('Vazir').fontSize(11).fillColor('#475569');
-  doc.text(`Certificate No: ${certificate.certificateNumber}`, 70, height - 106, { align: 'left' });
-  doc.text(`Verify: ${verificationUrl}`, 70, height - 82, { align: 'left' });
-
-  doc.image(qrBuffer, width - 168, height - 168, { width: 108, height: 108 });
-  doc.font('Vazir').fontSize(10).fillColor('#64748b').text('Scan to verify', width - 178, height - 54, { width: 128, align: 'center' });
-
+  doc.image(pngBuffer, 0, 0, {
+    width: doc.page.width,
+    height: doc.page.height,
+  });
   doc.end();
   return done;
 };
