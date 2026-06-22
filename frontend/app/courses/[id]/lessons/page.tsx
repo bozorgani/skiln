@@ -154,12 +154,12 @@ export default async function LessonsPage({
               </CardHeader>
               <CardContent className="p-4 md:p-6 pt-0">
                 {continueLesson && hasAccess ? (
-                  <div className="text-center py-8 md:py-12 space-y-5">
-                    <div className="mx-auto max-w-md space-y-3">
+                  <div className="flex flex-col items-center text-center py-8 md:py-12 gap-5 px-2">
+                    <div className="w-full max-w-xl space-y-3">
                       <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 text-primary mb-2">
                         {isCompleted ? <CheckCircle2 className="h-7 w-7" /> : hasStarted ? <RotateCcw className="h-7 w-7" /> : <Play className="h-7 w-7" />}
                       </div>
-                      <p className="text-foreground font-bold text-lg">
+                      <p className="text-foreground font-bold text-base sm:text-lg leading-8">
                         {isAdmin
                           ? 'مشاهده درس‌ها'
                           : isCompleted
@@ -168,7 +168,7 @@ export default async function LessonsPage({
                               ? 'ادامه یادگیری از جایی که مانده‌اید'
                               : 'آماده شروع یادگیری هستید؟'}
                       </p>
-                      <p className="text-muted-foreground text-sm sm:text-base">
+                      <p className="text-muted-foreground text-sm sm:text-base leading-7 break-words">
                         {hasStarted && !isCompleted
                           ? `پیشرفت فعلی شما ${progressPercent}% است. ادامه از: ${continueLesson.title}`
                           : isCompleted
@@ -181,8 +181,8 @@ export default async function LessonsPage({
                         </div>
                       )}
                     </div>
-                    <Link href={`/courses/${id}/lessons/${continueLesson._id}`}>
-                      <Button size="lg" className="text-sm sm:text-base">
+                    <Link href={`/courses/${id}/lessons/${continueLesson._id}`} className="w-full sm:w-auto">
+                      <Button size="lg" className="w-full sm:w-auto text-sm sm:text-base whitespace-normal min-h-12 leading-6">
                         <Play className="h-4 w-4 sm:h-5 sm:w-5 ml-2" />
                         {isAdmin
                           ? 'مشاهده درس'

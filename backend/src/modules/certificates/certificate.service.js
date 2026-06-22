@@ -9,7 +9,8 @@ const Progress = require('../progress/progress.model');
 const Course = require('../courses/course.model');
 
 const bidi = bidiFactory();
-const FONT_PATH = path.join(__dirname, '../../../assets/fonts/DejaVuSans.ttf');
+const FONT_REGULAR_PATH = require.resolve('vazirmatn/fonts/ttf/Vazirmatn-Regular.ttf');
+const FONT_BOLD_PATH = require.resolve('vazirmatn/fonts/ttf/Vazirmatn-Bold.ttf');
 
 const getFrontendUrl = () => (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
 
@@ -106,7 +107,8 @@ const generateCertificatePdf = async (certificate) => {
     Subject: 'Course Completion Certificate',
   }});
 
-  doc.registerFont('Vazir', FONT_PATH);
+  doc.registerFont('Vazir', FONT_REGULAR_PATH);
+  doc.registerFont('VazirBold', FONT_BOLD_PATH);
   const chunks = [];
   doc.on('data', (chunk) => chunks.push(chunk));
 
@@ -125,12 +127,12 @@ const generateCertificatePdf = async (certificate) => {
   doc.lineWidth(4).strokeColor('#2563eb').roundedRect(28, 28, width - 56, height - 56, 18).stroke();
   doc.lineWidth(1).strokeColor('#93c5fd').roundedRect(42, 42, width - 84, height - 84, 14).stroke();
 
-  doc.fillColor('#1d4ed8').font('Vazir').fontSize(26).text('SKILN', 60, 58, { align: 'left' });
-  drawCenteredFa(doc, 'گواهینامه پایان دوره', 80, { size: 34, color: '#1e3a8a' });
+  doc.fillColor('#1d4ed8').font('VazirBold').fontSize(26).text('SKILN', 60, 58, { align: 'left' });
+  drawCenteredFa(doc, 'گواهینامه پایان دوره', 80, { size: 34, color: '#1e3a8a', font: 'VazirBold' });
   drawCenteredFa(doc, 'بدین وسیله گواهی می‌شود که', 145, { size: 18, color: '#475569' });
-  drawCenteredFa(doc, certificate.user?.name || 'دانشجوی Skiln', 185, { size: 32, color: '#0f172a' });
+  drawCenteredFa(doc, certificate.user?.name || 'دانشجوی Skiln', 185, { size: 32, color: '#0f172a', font: 'VazirBold' });
   drawCenteredFa(doc, 'دوره زیر را با موفقیت به پایان رسانده است', 240, { size: 18, color: '#475569' });
-  drawCenteredFa(doc, certificate.course?.title || 'دوره آموزشی', 282, { size: 30, color: '#1d4ed8' });
+  drawCenteredFa(doc, certificate.course?.title || 'دوره آموزشی', 282, { size: 30, color: '#1d4ed8', font: 'VazirBold' });
 
   const issued = new Date(certificate.issuedAt).toLocaleDateString('fa-IR');
   const completed = new Date(certificate.completedAt).toLocaleDateString('fa-IR');
